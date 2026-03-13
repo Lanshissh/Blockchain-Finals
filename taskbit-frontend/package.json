@@ -13,8 +13,12 @@
   },
   "dependencies": {
     "ethers": "^6.16.0",
+<<<<<<< HEAD
     "vue": "^3.5.29",
     "vue-router": "^5.0.3"
+=======
+    "vue": "^3.5.29"
+>>>>>>> 03d5fd7eaef880115d452b16c712740e96b3c7c6
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

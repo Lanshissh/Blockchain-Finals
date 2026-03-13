@@ -1,10 +1,16 @@
 @import './base.css';
 
 #app {
+<<<<<<< HEAD
   width: 100%;
   min-height: 100vh;
   margin: 0;
   padding: 0;
+=======
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 2rem;
+>>>>>>> 03d5fd7eaef880115d452b16c712740e96b3c7c6
   font-weight: normal;
 }
 
@@ -22,3 +28,18 @@ a,
   }
 }
 
+<<<<<<< HEAD
+=======
+@media (min-width: 1024px) {
+  body {
+    display: flex;
+    place-items: center;
+  }
+
+  #app {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    padding: 0 2rem;
+  }
+}
+>>>>>>> 03d5fd7eaef880115d452b16c712740e96b3c7c6
