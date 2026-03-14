@@ -38,7 +38,8 @@ export function useAuctusStore() {
   const contributionForm = ref({
     title: '',
     category: 0,
-    description: ''
+    description: '',
+    dueDate: ''
   })
 
   const contributions = ref([])
@@ -68,11 +69,19 @@ export function useAuctusStore() {
     }))
   )
 
+  function getTodayString() {
+    const now = new Date()
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(
+      now.getDate()
+    ).padStart(2, '0')}`
+  }
+
   function resetContributionForm() {
     contributionForm.value = {
       title: '',
       category: 0,
-      description: ''
+      description: '',
+      dueDate: getTodayString()
     }
   }
 
@@ -235,6 +244,7 @@ export function useAuctusStore() {
 
     const title = contributionForm.value.title.trim()
     const description = contributionForm.value.description.trim()
+    const dueDate = contributionForm.value.dueDate
 
     if (!title) {
       txStatus.value = 'Contribution title cannot be empty.'
@@ -246,6 +256,11 @@ export function useAuctusStore() {
       return
     }
 
+    if (!dueDate) {
+      txStatus.value = 'Please select a due date.'
+      return
+    }
+
     try {
       clearLatestTransaction()
       txStatus.value = 'Sending contribution transaction...'
@@ -253,7 +268,8 @@ export function useAuctusStore() {
       const txResult = await createContribution(contract, {
         title,
         category: contributionForm.value.category,
-        description
+        description,
+        dueDate
       })
 
       setLatestTransaction(txResult)
@@ -346,6 +362,7 @@ export function useAuctusStore() {
     }
 
     isInitialized.value = true
+    resetContributionForm()
     attachWalletListeners()
     await restoreWalletSession()
   }

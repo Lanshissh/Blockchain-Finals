@@ -34,8 +34,18 @@ function normalizeCategoryValue(category) {
   return numericCategory
 }
 
+function normalizeDueDateToUnix(dueDate) {
+  if (!dueDate) {
+    return 0
+  }
+
+  const parsed = new Date(`${dueDate}T00:00:00`)
+  return Number.isNaN(parsed.getTime()) ? 0 : Math.floor(parsed.getTime() / 1000)
+}
+
 function mapContractContribution(contribution) {
   const categoryValue = normalizeCategoryValue(contribution.category)
+  const dueDate = Number(contribution.dueDate || 0)
 
   return {
     id: Number(contribution.id),
@@ -45,6 +55,7 @@ function mapContractContribution(contribution) {
     description: contribution.description,
     completed: contribution.completed,
     createdAt: Number(contribution.createdAt),
+    dueDate,
     deleted: contribution.deleted
   }
 }
@@ -74,7 +85,17 @@ export async function fetchMyContributions(contract) {
   return contributions
     .filter((contribution) => !contribution.deleted)
     .map(mapContractContribution)
-    .sort((a, b) => b.createdAt - a.createdAt)
+    .sort((a, b) => {
+      if (a.completed !== b.completed) {
+        return a.completed ? 1 : -1
+      }
+
+      if (a.dueDate !== b.dueDate) {
+        return a.dueDate - b.dueDate
+      }
+
+      return b.createdAt - a.createdAt
+    })
 }
 
 export async function fetchMyContributionCount(contract) {
@@ -86,8 +107,9 @@ export async function createContribution(contract, payload) {
   const title = payload?.title?.trim?.() || ''
   const description = payload?.description?.trim?.() || ''
   const category = normalizeCategoryValue(payload?.category)
+  const dueDate = normalizeDueDateToUnix(payload?.dueDate)
 
-  const tx = await contract.addContribution(title, category, description)
+  const tx = await contract.addContribution(title, category, description, dueDate)
   return finalizeTransaction(tx)
 }
 
@@ -134,6 +156,14 @@ export function getReadableBlockchainError(error) {
     message.includes('sepolia')
   ) {
     return 'Wrong network. Please switch MetaMask to Sepolia.'
+  }
+
+  if (message.includes('due date cannot be in the past')) {
+    return 'Due date cannot be in the past.'
+  }
+
+  if (message.includes('due date is required')) {
+    return 'Please select a due date.'
   }
 
   if (

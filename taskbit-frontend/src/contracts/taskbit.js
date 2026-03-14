@@ -1,5 +1,5 @@
 export const TASKBIT_ADDRESS =
-  import.meta.env.VITE_TASKBIT_ADDRESS || '0x45e93d371c1EE28643a15Ca74360378130EA5c8c'
+  import.meta.env.VITE_TASKBIT_ADDRESS || '0x1de7eCEc793C74a0a2e7afDA6F7800fA925e037C'
 
 export const CONTRIBUTION_CATEGORIES = [
   'Paper',
@@ -27,6 +27,11 @@ export const TASKBIT_ABI = [
         internalType: 'string',
         name: '_description',
         type: 'string'
+      },
+      {
+        internalType: 'uint256',
+        name: '_dueDate',
+        type: 'uint256'
       }
     ],
     name: 'addContribution',
@@ -84,6 +89,12 @@ export const TASKBIT_ABI = [
         indexed: false,
         internalType: 'uint256',
         name: 'createdAt',
+        type: 'uint256'
+      },
+      {
+        indexed: false,
+        internalType: 'uint256',
+        name: 'dueDate',
         type: 'uint256'
       }
     ],
@@ -159,41 +170,14 @@ export const TASKBIT_ABI = [
     outputs: [
       {
         components: [
-          {
-            internalType: 'uint256',
-            name: 'id',
-            type: 'uint256'
-          },
-          {
-            internalType: 'string',
-            name: 'title',
-            type: 'string'
-          },
-          {
-            internalType: 'enum TaskBit.ContributionCategory',
-            name: 'category',
-            type: 'uint8'
-          },
-          {
-            internalType: 'string',
-            name: 'description',
-            type: 'string'
-          },
-          {
-            internalType: 'bool',
-            name: 'completed',
-            type: 'bool'
-          },
-          {
-            internalType: 'uint256',
-            name: 'createdAt',
-            type: 'uint256'
-          },
-          {
-            internalType: 'bool',
-            name: 'deleted',
-            type: 'bool'
-          }
+          { internalType: 'uint256', name: 'id', type: 'uint256' },
+          { internalType: 'string', name: 'title', type: 'string' },
+          { internalType: 'enum TaskBit.ContributionCategory', name: 'category', type: 'uint8' },
+          { internalType: 'string', name: 'description', type: 'string' },
+          { internalType: 'bool', name: 'completed', type: 'bool' },
+          { internalType: 'uint256', name: 'createdAt', type: 'uint256' },
+          { internalType: 'uint256', name: 'dueDate', type: 'uint256' },
+          { internalType: 'bool', name: 'deleted', type: 'bool' }
         ],
         internalType: 'struct TaskBit.Contribution',
         name: '',
@@ -222,41 +206,14 @@ export const TASKBIT_ABI = [
     outputs: [
       {
         components: [
-          {
-            internalType: 'uint256',
-            name: 'id',
-            type: 'uint256'
-          },
-          {
-            internalType: 'string',
-            name: 'title',
-            type: 'string'
-          },
-          {
-            internalType: 'enum TaskBit.ContributionCategory',
-            name: 'category',
-            type: 'uint8'
-          },
-          {
-            internalType: 'string',
-            name: 'description',
-            type: 'string'
-          },
-          {
-            internalType: 'bool',
-            name: 'completed',
-            type: 'bool'
-          },
-          {
-            internalType: 'uint256',
-            name: 'createdAt',
-            type: 'uint256'
-          },
-          {
-            internalType: 'bool',
-            name: 'deleted',
-            type: 'bool'
-          }
+          { internalType: 'uint256', name: 'id', type: 'uint256' },
+          { internalType: 'string', name: 'title', type: 'string' },
+          { internalType: 'enum TaskBit.ContributionCategory', name: 'category', type: 'uint8' },
+          { internalType: 'string', name: 'description', type: 'string' },
+          { internalType: 'bool', name: 'completed', type: 'bool' },
+          { internalType: 'uint256', name: 'createdAt', type: 'uint256' },
+          { internalType: 'uint256', name: 'dueDate', type: 'uint256' },
+          { internalType: 'bool', name: 'deleted', type: 'bool' }
         ],
         internalType: 'struct TaskBit.Contribution[]',
         name: '',

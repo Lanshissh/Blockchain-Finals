@@ -3,7 +3,7 @@
     <header class="top-nav">
       <div class="nav-container">
         <div class="brand">
-          <span class="brand-icon" aria-hidden="true">🎓</span>
+          <img src="/logo.png" class="brand-logo" alt="TaskBit Logo" />
           <div>
             <h1>TaskBit</h1>
             <p class="brand-subtitle">Blockchain Academic Contribution Tracker</p>

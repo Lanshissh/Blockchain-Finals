@@ -1,42 +1,33 @@
 import { createRouter, createWebHistory } from 'vue-router'
-import App from '../App.vue'
+import CalendarPage from '../views/CalendarPage.vue'
+import ContributionsPage from '../views/ContributionsPage.vue'
 import LoginPage from '../views/LoginPage.vue'
-import { useAuctusStore } from '../composables/useAuctusStore'
+
+const routes = [
+  {
+    path: '/',
+    redirect: '/calendar'
+  },
+  {
+    path: '/login',
+    name: 'login',
+    component: LoginPage
+  },
+  {
+    path: '/calendar',
+    name: 'calendar',
+    component: CalendarPage
+  },
+  {
+    path: '/contributions',
+    name: 'contributions',
+    component: ContributionsPage
+  }
+]
 
 const router = createRouter({
   history: createWebHistory(),
-  routes: [
-    {
-      path: '/',
-      name: 'home',
-      component: App,
-      beforeEnter: async () => {
-        const { init, account } = useAuctusStore()
-        await init()
-
-        if (!account.value) {
-          return '/login'
-        }
-
-        return true
-      }
-    },
-    {
-      path: '/login',
-      name: 'login',
-      component: LoginPage,
-      beforeEnter: async () => {
-        const { init, account } = useAuctusStore()
-        await init()
-
-        if (account.value) {
-          return '/'
-        }
-
-        return true
-      }
-    }
-  ]
+  routes
 })
 
 export default router
