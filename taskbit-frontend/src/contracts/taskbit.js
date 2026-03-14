@@ -1,210 +1,269 @@
-export const TASKBIT_ADDRESS = "0x3f3568ce900c7e8f0A4716D7628ed35735DeD464";
+export const TASKBIT_ADDRESS =
+  import.meta.env.VITE_TASKBIT_ADDRESS || '0x45e93d371c1EE28643a15Ca74360378130EA5c8c'
+
+export const CONTRIBUTION_CATEGORIES = [
+  'Paper',
+  'Seminar',
+  'Research',
+  'Competition',
+  'Extension',
+  'Other'
+]
 
 export const TASKBIT_ABI = [
   {
-    "inputs": [
+    inputs: [
       {
-        "internalType": "string",
-        "name": "_content",
-        "type": "string"
+        internalType: 'string',
+        name: '_title',
+        type: 'string'
+      },
+      {
+        internalType: 'enum TaskBit.ContributionCategory',
+        name: '_category',
+        type: 'uint8'
+      },
+      {
+        internalType: 'string',
+        name: '_description',
+        type: 'string'
       }
     ],
-    "name": "addTask",
-    "outputs": [],
-    "stateMutability": "nonpayable",
-    "type": "function"
+    name: 'addContribution',
+    outputs: [],
+    stateMutability: 'nonpayable',
+    type: 'function'
   },
   {
-    "inputs": [
+    inputs: [
       {
-        "internalType": "uint256",
-        "name": "_taskId",
-        "type": "uint256"
+        internalType: 'uint256',
+        name: '_contributionId',
+        type: 'uint256'
       }
     ],
-    "name": "deleteTask",
-    "outputs": [],
-    "stateMutability": "nonpayable",
-    "type": "function"
+    name: 'deleteContribution',
+    outputs: [],
+    stateMutability: 'nonpayable',
+    type: 'function'
   },
   {
-    "anonymous": false,
-    "inputs": [
+    anonymous: false,
+    inputs: [
       {
-        "indexed": true,
-        "internalType": "address",
-        "name": "owner",
-        "type": "address"
+        indexed: true,
+        internalType: 'address',
+        name: 'owner',
+        type: 'address'
       },
       {
-        "indexed": true,
-        "internalType": "uint256",
-        "name": "taskId",
-        "type": "uint256"
+        indexed: true,
+        internalType: 'uint256',
+        name: 'contributionId',
+        type: 'uint256'
       },
       {
-        "indexed": false,
-        "internalType": "string",
-        "name": "content",
-        "type": "string"
+        indexed: false,
+        internalType: 'string',
+        name: 'title',
+        type: 'string'
       },
       {
-        "indexed": false,
-        "internalType": "uint256",
-        "name": "createdAt",
-        "type": "uint256"
+        indexed: false,
+        internalType: 'enum TaskBit.ContributionCategory',
+        name: 'category',
+        type: 'uint8'
+      },
+      {
+        indexed: false,
+        internalType: 'string',
+        name: 'description',
+        type: 'string'
+      },
+      {
+        indexed: false,
+        internalType: 'uint256',
+        name: 'createdAt',
+        type: 'uint256'
       }
     ],
-    "name": "TaskCreated",
-    "type": "event"
+    name: 'ContributionCreated',
+    type: 'event'
   },
   {
-    "anonymous": false,
-    "inputs": [
+    anonymous: false,
+    inputs: [
       {
-        "indexed": true,
-        "internalType": "address",
-        "name": "owner",
-        "type": "address"
+        indexed: true,
+        internalType: 'address',
+        name: 'owner',
+        type: 'address'
       },
       {
-        "indexed": true,
-        "internalType": "uint256",
-        "name": "taskId",
-        "type": "uint256"
+        indexed: true,
+        internalType: 'uint256',
+        name: 'contributionId',
+        type: 'uint256'
       }
     ],
-    "name": "TaskDeleted",
-    "type": "event"
+    name: 'ContributionDeleted',
+    type: 'event'
   },
   {
-    "anonymous": false,
-    "inputs": [
+    anonymous: false,
+    inputs: [
       {
-        "indexed": true,
-        "internalType": "address",
-        "name": "owner",
-        "type": "address"
+        indexed: true,
+        internalType: 'address',
+        name: 'owner',
+        type: 'address'
       },
       {
-        "indexed": true,
-        "internalType": "uint256",
-        "name": "taskId",
-        "type": "uint256"
+        indexed: true,
+        internalType: 'uint256',
+        name: 'contributionId',
+        type: 'uint256'
       },
       {
-        "indexed": false,
-        "internalType": "bool",
-        "name": "completed",
-        "type": "bool"
+        indexed: false,
+        internalType: 'bool',
+        name: 'completed',
+        type: 'bool'
       }
     ],
-    "name": "TaskToggled",
-    "type": "event"
+    name: 'ContributionUpdated',
+    type: 'event'
   },
   {
-    "inputs": [
+    inputs: [
       {
-        "internalType": "uint256",
-        "name": "_taskId",
-        "type": "uint256"
+        internalType: 'uint256',
+        name: '_contributionId',
+        type: 'uint256'
       }
     ],
-    "name": "toggleTask",
-    "outputs": [],
-    "stateMutability": "nonpayable",
-    "type": "function"
+    name: 'toggleContribution',
+    outputs: [],
+    stateMutability: 'nonpayable',
+    type: 'function'
   },
   {
-    "inputs": [
+    inputs: [
       {
-        "internalType": "uint256",
-        "name": "_taskId",
-        "type": "uint256"
+        internalType: 'uint256',
+        name: '_contributionId',
+        type: 'uint256'
       }
     ],
-    "name": "getMyTask",
-    "outputs": [
+    name: 'getMyContribution',
+    outputs: [
       {
-        "internalType": "uint256",
-        "name": "id",
-        "type": "uint256"
-      },
-      {
-        "internalType": "string",
-        "name": "content",
-        "type": "string"
-      },
-      {
-        "internalType": "bool",
-        "name": "completed",
-        "type": "bool"
-      },
-      {
-        "internalType": "uint256",
-        "name": "createdAt",
-        "type": "uint256"
-      },
-      {
-        "internalType": "bool",
-        "name": "deleted",
-        "type": "bool"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [],
-    "name": "getMyTaskCount",
-    "outputs": [
-      {
-        "internalType": "uint256",
-        "name": "",
-        "type": "uint256"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [],
-    "name": "getMyTasks",
-    "outputs": [
-      {
-        "components": [
+        components: [
           {
-            "internalType": "uint256",
-            "name": "id",
-            "type": "uint256"
+            internalType: 'uint256',
+            name: 'id',
+            type: 'uint256'
           },
           {
-            "internalType": "string",
-            "name": "content",
-            "type": "string"
+            internalType: 'string',
+            name: 'title',
+            type: 'string'
           },
           {
-            "internalType": "bool",
-            "name": "completed",
-            "type": "bool"
+            internalType: 'enum TaskBit.ContributionCategory',
+            name: 'category',
+            type: 'uint8'
           },
           {
-            "internalType": "uint256",
-            "name": "createdAt",
-            "type": "uint256"
+            internalType: 'string',
+            name: 'description',
+            type: 'string'
           },
           {
-            "internalType": "bool",
-            "name": "deleted",
-            "type": "bool"
+            internalType: 'bool',
+            name: 'completed',
+            type: 'bool'
+          },
+          {
+            internalType: 'uint256',
+            name: 'createdAt',
+            type: 'uint256'
+          },
+          {
+            internalType: 'bool',
+            name: 'deleted',
+            type: 'bool'
           }
         ],
-        "internalType": "struct TaskBit.Task[]",
-        "name": "",
-        "type": "tuple[]"
+        internalType: 'struct TaskBit.Contribution',
+        name: '',
+        type: 'tuple'
       }
     ],
-    "stateMutability": "view",
-    "type": "function"
+    stateMutability: 'view',
+    type: 'function'
+  },
+  {
+    inputs: [],
+    name: 'getMyContributionCount',
+    outputs: [
+      {
+        internalType: 'uint256',
+        name: '',
+        type: 'uint256'
+      }
+    ],
+    stateMutability: 'view',
+    type: 'function'
+  },
+  {
+    inputs: [],
+    name: 'getMyContributions',
+    outputs: [
+      {
+        components: [
+          {
+            internalType: 'uint256',
+            name: 'id',
+            type: 'uint256'
+          },
+          {
+            internalType: 'string',
+            name: 'title',
+            type: 'string'
+          },
+          {
+            internalType: 'enum TaskBit.ContributionCategory',
+            name: 'category',
+            type: 'uint8'
+          },
+          {
+            internalType: 'string',
+            name: 'description',
+            type: 'string'
+          },
+          {
+            internalType: 'bool',
+            name: 'completed',
+            type: 'bool'
+          },
+          {
+            internalType: 'uint256',
+            name: 'createdAt',
+            type: 'uint256'
+          },
+          {
+            internalType: 'bool',
+            name: 'deleted',
+            type: 'bool'
+          }
+        ],
+        internalType: 'struct TaskBit.Contribution[]',
+        name: '',
+        type: 'tuple[]'
+      }
+    ],
+    stateMutability: 'view',
+    type: 'function'
   }
-];
+]
