@@ -5,7 +5,7 @@
         <div class="brand">
           <span class="brand-icon" aria-hidden="true">🎓</span>
           <div>
-            <h1>Auctus</h1>
+            <h1>TaskBit</h1>
             <p class="brand-subtitle">Blockchain Academic Contribution Tracker</p>
           </div>
         </div>
@@ -13,7 +13,7 @@
         <div class="nav-right">
           <span class="network-badge">Sepolia</span>
           <span class="network-detail">{{ status }}</span>
-          <span class="network-detail">{{ contractStatus.replace("TaskBit", "Auctus") }}</span>
+          <span class="network-detail">{{ contractStatus.replace("TaskBit", "TaskBit") }}</span>
 
           <RouterLink v-if="!account" to="/login" class="connect-btn">
             Connect MetaMask

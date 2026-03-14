@@ -5,7 +5,7 @@ import {
   CONTRIBUTION_CATEGORIES
 } from '../contracts/taskbit'
 
-export const APP_BRAND = 'Auctus'
+export const APP_BRAND = 'TaskBit'
 export const CONTRACT_BRAND = 'TaskBit'
 export const CONTRACT_LABEL = `${CONTRACT_BRAND} smart contract`
 export const BLOCK_EXPLORER_TX_BASE_URL = 'https://sepolia.etherscan.io/tx/'
