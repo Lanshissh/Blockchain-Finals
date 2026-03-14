@@ -65,8 +65,14 @@ const showFoxFallback = ref(false)
 onMounted(async () => {
   await init()
 
+  const redirectTarget =
+    typeof router.currentRoute.value.query.redirect === 'string' &&
+    router.currentRoute.value.query.redirect.startsWith('/')
+      ? router.currentRoute.value.query.redirect
+      : '/calendar'
+
   if (account.value) {
-    router.replace('/')
+    router.replace(redirectTarget)
   }
 })
 
@@ -77,8 +83,14 @@ async function handleConnect() {
   try {
     const connected = await connectWallet()
 
+    const redirectTarget =
+      typeof router.currentRoute.value.query.redirect === 'string' &&
+      router.currentRoute.value.query.redirect.startsWith('/')
+        ? router.currentRoute.value.query.redirect
+        : '/calendar'
+
     if (connected && account.value) {
-      router.replace('/')
+      router.replace(redirectTarget)
       return
     }
 

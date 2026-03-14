@@ -85,7 +85,7 @@
           </div>
 
           <div class="hero-actions">
-            <button class="submit-btn" @click="openModal" :disabled="!account || isWrongNetwork || isBusy">
+            <button class="submit-btn" @click="openCreateModal" :disabled="!account || isWrongNetwork || isBusy">
               + Submit New Contribution
             </button>
 
@@ -151,7 +151,11 @@
           </div>
 
           <div class="calendar-month-toolbar">
-            <button class="calendar-nav-btn" @click="goToPreviousMonth">← Previous</button>
+            <div class="calendar-toolbar-left">
+              <button class="calendar-nav-btn" @click="goToPreviousMonth">← Previous</button>
+              <button class="calendar-nav-btn calendar-today-btn" @click="goToToday">Today</button>
+              <button class="calendar-nav-btn" @click="goToNextMonth">Next →</button>
+            </div>
 
             <div class="calendar-month-title-block">
               <h4 class="calendar-month-title">{{ currentMonthLabel }}</h4>
@@ -159,8 +163,6 @@
                 {{ currentMonthContributionCount }} contribution(s) this month
               </p>
             </div>
-
-            <button class="calendar-nav-btn" @click="goToNextMonth">Next →</button>
           </div>
 
           <div class="calendar-weekdays">
@@ -170,14 +172,17 @@
           </div>
 
           <div class="calendar-month-grid">
-            <div
+            <button
               v-for="day in calendarDays"
               :key="day.key"
+              type="button"
               class="month-day-cell"
               :class="{
                 'is-other-month': !day.isCurrentMonth,
-                'is-today': day.isToday
+                'is-today': day.isToday,
+                'has-items': day.items.length > 0
               }"
+              @click="openDayModal(day)"
             >
               <div class="month-day-top">
                 <span class="month-day-number">{{ day.dayNumber }}</span>
@@ -187,36 +192,39 @@
               </div>
 
               <div class="month-day-items">
-
-                <div
-                  v-for="item in day.items.slice(0,2)"
-                  :key="item.id"
-                  class="month-day-item"
-                  :class="deadlineClass(item)"
-                >
-                  <div class="month-day-item-title">{{ item.title }}</div>
-
-                  <div class="month-day-item-meta">
-                    <span>{{ item.categoryLabel }}</span>
-                    <span>{{ item.completed ? 'Done' : 'Pending' }}</span>
+                <template v-if="day.items.length">
+                  <div
+                    v-for="item in day.items.slice(0, 2)"
+                    :key="item.id"
+                    class="month-day-item"
+                    :class="deadlineClass(item)"
+                  >
+                    <div class="month-day-item-title">{{ item.title }}</div>
+                    <div class="month-day-item-meta">
+                      <span>{{ item.categoryLabel }}</span>
+                      <span>{{ item.completed ? 'Done' : 'Pending' }}</span>
+                    </div>
                   </div>
-                </div>
 
-                <div
-                  v-if="day.items.length > 2"
-                  class="month-day-more"
-                >
-                  +{{ day.items.length - 2 }} more
-                </div>
+                  <div
+                    v-if="day.items.length > 2"
+                    class="month-day-more"
+                  >
+                    +{{ day.items.length - 2 }} more
+                  </div>
+                </template>
 
+                <div v-else class="month-day-empty-state">
+                  No tasks
+                </div>
               </div>
-            </div>
+            </button>
           </div>
         </section>
       </main>
     </div>
 
-    <div v-if="showModal" class="modal-backdrop" @click.self="closeModal">
+    <div v-if="showCreateModal" class="modal-backdrop" @click.self="closeCreateModal">
       <div class="modal-card">
         <div class="modal-header">
           <div>
@@ -226,7 +234,7 @@
             </p>
           </div>
 
-          <button class="modal-close-btn" @click="closeModal">×</button>
+          <button class="modal-close-btn" @click="closeCreateModal">×</button>
         </div>
 
         <div class="contribution-form contribution-form-stacked">
@@ -283,6 +291,59 @@
             >
               Clear Form
             </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div v-if="showDayModal && selectedDay" class="modal-backdrop" @click.self="closeDayModal">
+      <div class="modal-card day-modal-card">
+        <div class="modal-header">
+          <div>
+            <h3>{{ selectedDayLabel }}</h3>
+            <p class="section-subtitle">
+              {{ selectedDay.items.length }}
+              {{ selectedDay.items.length === 1 ? 'contribution' : 'contributions' }}
+            </p>
+          </div>
+
+          <button class="modal-close-btn" @click="closeDayModal">×</button>
+        </div>
+
+        <div v-if="selectedDay.isToday" class="day-modal-chip-row">
+          <span class="selected-day-chip">Today</span>
+        </div>
+
+        <div v-if="selectedDay.items.length === 0" class="selected-day-empty">
+          No contributions scheduled for this day.
+        </div>
+
+        <div v-else class="selected-day-list">
+          <div
+            v-for="item in selectedDay.items"
+            :key="item.id"
+            class="selected-day-item"
+          >
+            <div class="selected-day-item-top">
+              <h5>{{ item.title }}</h5>
+              <span
+                class="mini-status-badge"
+                :class="item.completed ? 'status-complete' : 'status-pending'"
+              >
+                {{ item.completed ? 'Completed' : 'Pending' }}
+              </span>
+            </div>
+
+            <div class="selected-day-meta">
+              <span class="category-badge">{{ item.categoryLabel }}</span>
+              <span class="deadline-badge" :class="deadlineClass(item)">
+                {{ deadlineLabel(item) }}
+              </span>
+            </div>
+
+            <p class="selected-day-description">
+              {{ item.description || 'No description provided.' }}
+            </p>
           </div>
         </div>
       </div>
@@ -346,8 +407,10 @@ const {
 
 const isRefreshing = ref(false)
 const isSwitchingNetwork = ref(false)
-const showModal = ref(false)
+const showCreateModal = ref(false)
+const showDayModal = ref(false)
 const currentMonthDate = ref(startOfMonth(new Date()))
+const selectedDayKey = ref(formatDateKey(new Date()))
 
 const weekdayLabels = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 
@@ -430,6 +493,10 @@ const contributionsByDate = computed(() => {
     grouped[key].push(item)
   }
 
+  Object.values(grouped).forEach((items) => {
+    items.sort((a, b) => Number(a.completed) - Number(b.completed))
+  })
+
   return grouped
 })
 
@@ -483,6 +550,20 @@ const calendarDays = computed(() => {
   return days
 })
 
+const selectedDay = computed(() => {
+  return calendarDays.value.find((day) => day.key === selectedDayKey.value) || null
+})
+
+const selectedDayLabel = computed(() => {
+  if (!selectedDay.value) return ''
+  return selectedDay.value.date.toLocaleDateString('en-US', {
+    weekday: 'long',
+    month: 'long',
+    day: 'numeric',
+    year: 'numeric'
+  })
+})
+
 function startOfDay(date) {
   return new Date(date.getFullYear(), date.getMonth(), date.getDate())
 }
@@ -510,6 +591,15 @@ function isSameDate(a, b) {
   )
 }
 
+function openDayModal(day) {
+  selectedDayKey.value = day.key
+  showDayModal.value = true
+}
+
+function closeDayModal() {
+  showDayModal.value = false
+}
+
 function goToPreviousMonth() {
   currentMonthDate.value = new Date(
     currentMonthDate.value.getFullYear(),
@@ -526,6 +616,11 @@ function goToNextMonth() {
   )
 }
 
+function goToToday() {
+  currentMonthDate.value = startOfMonth(new Date())
+  selectedDayKey.value = formatDateKey(new Date())
+}
+
 function isOverdue(contribution) {
   if (contribution.completed || !contribution.dueDate) return false
   const due = new Date(contribution.dueDate * 1000)
@@ -540,6 +635,13 @@ function isDueToday(contribution) {
   return dueStart.getTime() === todayStart.getTime()
 }
 
+function deadlineLabel(contribution) {
+  if (contribution.completed) return 'Completed'
+  if (isOverdue(contribution)) return 'Overdue'
+  if (isDueToday(contribution)) return 'Due Today'
+  return 'Upcoming'
+}
+
 function deadlineClass(contribution) {
   if (contribution.completed) return 'deadline-complete'
   if (isOverdue(contribution)) return 'deadline-overdue'
@@ -547,12 +649,12 @@ function deadlineClass(contribution) {
   return 'deadline-upcoming'
 }
 
-function openModal() {
-  showModal.value = true
+function openCreateModal() {
+  showCreateModal.value = true
 }
 
-function closeModal() {
-  showModal.value = false
+function closeCreateModal() {
+  showCreateModal.value = false
 }
 
 async function submitFromModal() {
@@ -565,7 +667,7 @@ async function submitFromModal() {
     !status.includes('wrong network') &&
     !status.includes('reverted')
   ) {
-    showModal.value = false
+    showCreateModal.value = false
   }
 }
 
