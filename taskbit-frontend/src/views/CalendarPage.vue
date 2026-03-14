@@ -13,6 +13,15 @@
         <div class="sidebar-section-label">Navigation</div>
         <nav class="page-nav sidebar-nav">
           <RouterLink
+            to="/dashboard"
+            class="page-nav-link sidebar-nav-link"
+            active-class="page-nav-link-active"
+          >
+            <span class="nav-link-icon">🏠</span>
+            <span>Dashboard</span>
+          </RouterLink>
+
+          <RouterLink
             to="/calendar"
             class="page-nav-link sidebar-nav-link"
             active-class="page-nav-link-active"
@@ -112,33 +121,6 @@
             >
               {{ isSwitchingNetwork ? `Switching to ${networkName}...` : `Switch to ${networkName}` }}
             </button>
-          </div>
-        </section>
-
-        <section class="stats-bar">
-          <div class="stat-card">
-            <span class="stat-label">Visible Contributions</span>
-            <strong class="stat-value">{{ contributions.length }}</strong>
-          </div>
-
-          <div class="stat-card">
-            <span class="stat-label">On-chain Count</span>
-            <strong class="stat-value">{{ contributionCount }}</strong>
-          </div>
-
-          <div class="stat-card">
-            <span class="stat-label">Completed</span>
-            <strong class="stat-value">{{ completedCount }}</strong>
-          </div>
-
-          <div class="stat-card">
-            <span class="stat-label">Pending</span>
-            <strong class="stat-value">{{ pendingCount }}</strong>
-          </div>
-
-          <div class="stat-card">
-            <span class="stat-label">Overdue</span>
-            <strong class="stat-value">{{ overdueCount }}</strong>
           </div>
         </section>
 
@@ -519,13 +501,13 @@ const currentMonthContributionCount = computed(() => {
 })
 
 const calendarDays = computed(() => {
-  const firstDayOfMonth = startOfMonth(currentMonthDate.value)
-  const lastDayOfMonth = endOfMonth(currentMonthDate.value)
+  const monthStart = startOfMonth(currentMonthDate.value)
+  const monthEnd = endOfMonth(currentMonthDate.value)
 
-  const gridStart = new Date(firstDayOfMonth)
+  const gridStart = new Date(monthStart)
   gridStart.setDate(gridStart.getDate() - gridStart.getDay())
 
-  const gridEnd = new Date(lastDayOfMonth)
+  const gridEnd = new Date(monthEnd)
   gridEnd.setDate(gridEnd.getDate() + (6 - gridEnd.getDay()))
 
   const days = []
@@ -540,7 +522,7 @@ const calendarDays = computed(() => {
       date: new Date(cursor),
       dayNumber: cursor.getDate(),
       isCurrentMonth: cursor.getMonth() === currentMonthDate.value.getMonth(),
-      isToday: isSameDate(cursor, todayStart),
+      isToday: formatDateKey(cursor) === formatDateKey(today),
       items
     })
 
@@ -577,27 +559,37 @@ function endOfMonth(date) {
 }
 
 function formatDateKey(date) {
-  const y = date.getFullYear()
-  const m = String(date.getMonth() + 1).padStart(2, '0')
-  const d = String(date.getDate()).padStart(2, '0')
-  return `${y}-${m}-${d}`
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(
+    date.getDate()
+  ).padStart(2, '0')}`
 }
 
-function isSameDate(a, b) {
-  return (
-    a.getFullYear() === b.getFullYear() &&
-    a.getMonth() === b.getMonth() &&
-    a.getDate() === b.getDate()
-  )
+function isOverdue(contribution) {
+  if (contribution.completed || !contribution.dueDate) return false
+  const due = new Date(contribution.dueDate * 1000)
+  const dueStart = startOfDay(due)
+  return dueStart < todayStart
 }
 
-function openDayModal(day) {
-  selectedDayKey.value = day.key
-  showDayModal.value = true
+function isDueToday(contribution) {
+  if (!contribution.dueDate) return false
+  const due = new Date(contribution.dueDate * 1000)
+  const dueStart = startOfDay(due)
+  return dueStart.getTime() === todayStart.getTime()
 }
 
-function closeDayModal() {
-  showDayModal.value = false
+function deadlineLabel(contribution) {
+  if (contribution.completed) return 'Completed'
+  if (isOverdue(contribution)) return 'Overdue'
+  if (isDueToday(contribution)) return 'Due Today'
+  return 'Upcoming'
+}
+
+function deadlineClass(contribution) {
+  if (contribution.completed) return 'deadline-complete'
+  if (isOverdue(contribution)) return 'deadline-overdue'
+  if (isDueToday(contribution)) return 'deadline-today'
+  return 'deadline-upcoming'
 }
 
 function goToPreviousMonth() {
@@ -621,34 +613,6 @@ function goToToday() {
   selectedDayKey.value = formatDateKey(new Date())
 }
 
-function isOverdue(contribution) {
-  if (contribution.completed || !contribution.dueDate) return false
-  const due = new Date(contribution.dueDate * 1000)
-  const dueStart = new Date(due.getFullYear(), due.getMonth(), due.getDate())
-  return dueStart < todayStart
-}
-
-function isDueToday(contribution) {
-  if (!contribution.dueDate) return false
-  const due = new Date(contribution.dueDate * 1000)
-  const dueStart = new Date(due.getFullYear(), due.getMonth(), due.getDate())
-  return dueStart.getTime() === todayStart.getTime()
-}
-
-function deadlineLabel(contribution) {
-  if (contribution.completed) return 'Completed'
-  if (isOverdue(contribution)) return 'Overdue'
-  if (isDueToday(contribution)) return 'Due Today'
-  return 'Upcoming'
-}
-
-function deadlineClass(contribution) {
-  if (contribution.completed) return 'deadline-complete'
-  if (isOverdue(contribution)) return 'deadline-overdue'
-  if (isDueToday(contribution)) return 'deadline-today'
-  return 'deadline-upcoming'
-}
-
 function openCreateModal() {
   showCreateModal.value = true
 }
@@ -657,24 +621,18 @@ function closeCreateModal() {
   showCreateModal.value = false
 }
 
-async function submitFromModal() {
-  await addContribution()
+function openDayModal(day) {
+  selectedDayKey.value = day.key
+  showDayModal.value = true
+}
 
-  const status = txStatus.value.toLowerCase()
-  if (
-    !status.includes('failed') &&
-    !status.includes('rejected') &&
-    !status.includes('wrong network') &&
-    !status.includes('reverted')
-  ) {
-    showCreateModal.value = false
-  }
+function closeDayModal() {
+  showDayModal.value = false
 }
 
 async function handleRefresh() {
-  if (isWrongNetwork.value || isRefreshing.value) return
-  isRefreshing.value = true
   try {
+    isRefreshing.value = true
     await loadContributions()
   } finally {
     isRefreshing.value = false
@@ -682,16 +640,23 @@ async function handleRefresh() {
 }
 
 async function handleSwitchNetwork() {
-  if (isSwitchingNetwork.value) return
-  isSwitchingNetwork.value = true
   try {
+    isSwitchingNetwork.value = true
     await switchNetwork()
   } finally {
     isSwitchingNetwork.value = false
   }
 }
 
-onMounted(() => {
-  init()
+async function submitFromModal() {
+  await addContribution()
+  if (!loweredTxStatus.value.includes('failed') && !loweredTxStatus.value.includes('rejected')) {
+    closeCreateModal()
+  }
+}
+
+onMounted(async () => {
+  await init()
+  await loadContributions()
 })
 </script>

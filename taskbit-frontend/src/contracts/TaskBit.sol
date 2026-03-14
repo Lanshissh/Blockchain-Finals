@@ -18,6 +18,7 @@ contract TaskBit {
         string description;
         bool completed;
         uint256 createdAt;
+        uint256 dueDate;
         bool deleted;
     }
 
@@ -29,7 +30,8 @@ contract TaskBit {
         string title,
         ContributionCategory category,
         string description,
-        uint256 createdAt
+        uint256 createdAt,
+        uint256 dueDate
     );
 
     event ContributionUpdated(
@@ -46,10 +48,13 @@ contract TaskBit {
     function addContribution(
         string calldata _title,
         ContributionCategory _category,
-        string calldata _description
+        string calldata _description,
+        uint256 _dueDate
     ) external {
         require(bytes(_title).length > 0, "Title cannot be empty");
         require(bytes(_description).length > 0, "Description cannot be empty");
+        require(_dueDate > 0, "Due date is required");
+        require(_dueDate >= block.timestamp, "Due date cannot be in the past");
 
         uint256 contributionId = userContributions[msg.sender].length;
 
@@ -61,6 +66,7 @@ contract TaskBit {
                 description: _description,
                 completed: false,
                 createdAt: block.timestamp,
+                dueDate: _dueDate,
                 deleted: false
             })
         );
@@ -71,7 +77,8 @@ contract TaskBit {
             _title,
             _category,
             _description,
-            block.timestamp
+            block.timestamp,
+            _dueDate
         );
     }
 
@@ -82,7 +89,6 @@ contract TaskBit {
         );
 
         Contribution storage contribution = userContributions[msg.sender][_contributionId];
-
         require(!contribution.deleted, "Contribution is deleted");
 
         contribution.completed = !contribution.completed;
@@ -101,7 +107,6 @@ contract TaskBit {
         );
 
         Contribution storage contribution = userContributions[msg.sender][_contributionId];
-
         require(!contribution.deleted, "Contribution already deleted");
 
         contribution.deleted = true;

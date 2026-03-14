@@ -1,4 +1,5 @@
 import { createRouter, createWebHistory } from 'vue-router'
+import DashboardPage from '../views/DashboardPage.vue'
 import CalendarPage from '../views/CalendarPage.vue'
 import ContributionsPage from '../views/ContributionsPage.vue'
 import LoginPage from '../views/LoginPage.vue'
@@ -7,13 +8,23 @@ import { useAuctusStore } from '../composables/useAuctusStore'
 const routes = [
   {
     path: '/',
-    redirect: '/calendar'
+    name: 'root',
+    redirect: () => {
+      const store = useAuctusStore()
+      return store.account.value ? '/dashboard' : '/login'
+    }
   },
   {
     path: '/login',
     name: 'login',
     component: LoginPage,
     meta: { guestOnly: true }
+  },
+  {
+    path: '/dashboard',
+    name: 'dashboard',
+    component: DashboardPage,
+    meta: { requiresAuth: true }
   },
   {
     path: '/calendar',
@@ -48,7 +59,7 @@ router.beforeEach(async (to) => {
     const redirectTarget =
       typeof to.query.redirect === 'string' && to.query.redirect.startsWith('/')
         ? to.query.redirect
-        : '/calendar'
+        : '/dashboard'
 
     return redirectTarget
   }

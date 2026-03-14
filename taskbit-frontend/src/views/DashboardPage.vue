@@ -65,10 +65,10 @@
     <div class="dashboard-main">
       <header class="content-header">
         <div class="content-header-copy">
-          <p class="content-header-eyebrow">Workspace</p>
-          <h2>Academic Contributions</h2>
+          <p class="content-header-eyebrow">Overview</p>
+          <h2>Dashboard</h2>
           <p class="content-header-subtitle">
-            Review, complete, and delete your recorded academic contributions.
+            View your academic contribution summary, deadlines, and quick actions in one place.
           </p>
         </div>
 
@@ -87,37 +87,63 @@
       <main class="main-content">
         <section class="toolbar-card">
           <div class="toolbar-copy">
-            <h3>Contribution Actions</h3>
+            <h3>Quick Actions</h3>
             <p class="section-subtitle">
-              Refresh your list and manage contribution status below.
+              Jump directly to the pages you use most.
             </p>
           </div>
 
           <div class="hero-actions">
-            <button class="refresh-btn" @click="loadContributions" :disabled="isLoadingContributions">
-              {{ isLoadingContributions ? 'Refreshing...' : 'Refresh' }}
-            </button>
+            <RouterLink to="/calendar" class="submit-btn">Open Calendar</RouterLink>
+            <RouterLink to="/contributions" class="refresh-btn">Manage Contributions</RouterLink>
+          </div>
+        </section>
+
+        <section class="stats-bar">
+          <div class="stat-card">
+            <span class="stat-label">Total Contributions</span>
+            <strong class="stat-value">{{ contributions.length }}</strong>
+          </div>
+
+          <div class="stat-card">
+            <span class="stat-label">On-chain Count</span>
+            <strong class="stat-value">{{ contributionCount }}</strong>
+          </div>
+
+          <div class="stat-card">
+            <span class="stat-label">Completed</span>
+            <strong class="stat-value">{{ completedCount }}</strong>
+          </div>
+
+          <div class="stat-card">
+            <span class="stat-label">Pending</span>
+            <strong class="stat-value">{{ pendingCount }}</strong>
+          </div>
+
+          <div class="stat-card">
+            <span class="stat-label">Overdue</span>
+            <strong class="stat-value">{{ overdueCount }}</strong>
           </div>
         </section>
 
         <section class="contribution-list">
           <div class="section-header section-header-tight">
             <div>
-              <h3>My Academic Contributions</h3>
+              <h3>Upcoming Deadlines</h3>
               <p class="section-subtitle">
-                Your records are loaded from the blockchain and organized here.
+                Your nearest scheduled academic contributions.
               </p>
             </div>
           </div>
 
-          <div v-if="contributions.length === 0 && !isLoadingContributions" class="empty-state">
-            <div class="empty-illustration" aria-hidden="true">📚</div>
-            <p>No contributions recorded yet.</p>
+          <div v-if="upcomingContributions.length === 0" class="empty-state">
+            <div class="empty-illustration" aria-hidden="true">📌</div>
+            <p>No upcoming contributions found.</p>
           </div>
 
           <ul v-else>
             <li
-              v-for="contribution in contributions"
+              v-for="contribution in upcomingContributions"
               :key="contribution.id"
               class="contribution-card"
               :class="{ completed: contribution.completed, pending: !contribution.completed }"
@@ -137,70 +163,29 @@
 
                   <div class="meta-row meta-row-wrap">
                     <span class="category-badge">{{ contribution.categoryLabel }}</span>
-                    <span class="timestamp">Created: {{ formatDate(contribution.createdAt) }}</span>
 
                     <span v-if="contribution.dueDate" class="due-date-badge">
                       Due: {{ formatDate(contribution.dueDate) }}
                     </span>
 
-                    <span v-if="contribution.dueDate" class="deadline-badge" :class="deadlineClass(contribution)">
+                    <span
+                      v-if="contribution.dueDate"
+                      class="deadline-badge"
+                      :class="deadlineClass(contribution)"
+                    >
                       {{ deadlineLabel(contribution) }}
                     </span>
                   </div>
 
                   <p class="contribution-description">
-                    {{ contribution.description }}
+                    {{ contribution.description || 'No description provided.' }}
                   </p>
                 </div>
-              </div>
-
-              <div class="card-actions">
-                <button
-                  class="action-btn"
-                  @click="toggleContribution(contribution.id)"
-                  :disabled="!canEditContributions"
-                >
-                  {{ contribution.completed ? 'Undo' : 'Mark Complete' }}
-                </button>
-
-                <button
-                  class="delete-btn"
-                  @click="removeContribution(contribution.id)"
-                  :disabled="!canEditContributions"
-                >
-                  Delete
-                </button>
               </div>
             </li>
           </ul>
         </section>
       </main>
-    </div>
-
-    <div
-      v-if="txStatus && txStatus !== 'No transaction yet'"
-      class="tx-toast"
-      :class="toastClass"
-    >
-      <div class="toast-content">
-        <span class="toast-message">{{ txStatus }}</span>
-
-        <a
-          v-if="latestTxUrl"
-          class="toast-link"
-          :href="latestTxUrl"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          View on Etherscan
-        </a>
-
-        <span v-if="latestTxHash" class="toast-hash">
-          {{ shortTxHash }}
-        </span>
-      </div>
-
-      <button class="toast-close" @click="resetTxStatus">x</button>
     </div>
   </div>
 </template>
@@ -214,53 +199,36 @@ const {
   account,
   walletStatus,
   contractStatus,
-  txStatus,
-  latestTxHash,
-  latestTxUrl,
   contributions,
+  contributionCount,
   isWrongNetwork,
-  isLoadingContributions,
-  toggleContribution,
-  removeContribution,
-  resetTxStatus,
   init,
   loadContributions,
   appBrand,
   networkName
 } = useAuctusStore()
 
-const loweredTxStatus = computed(() => txStatus.value.toLowerCase())
-
-const canEditContributions = computed(() => {
-  return Boolean(account.value) && !isWrongNetwork.value && !isLoadingContributions.value
-})
-
-const shortTxHash = computed(() => {
-  if (!latestTxHash.value) return ''
-  return `${latestTxHash.value.slice(0, 10)}...${latestTxHash.value.slice(-8)}`
-})
-
-const toastClass = computed(() => ({
-  success:
-    !loweredTxStatus.value.includes('sending') &&
-    !loweredTxStatus.value.includes('rejected') &&
-    !loweredTxStatus.value.includes('wrong network') &&
-    !loweredTxStatus.value.includes('failed') &&
-    !loweredTxStatus.value.includes('reverted') &&
-    !loweredTxStatus.value.includes('insufficient') &&
-    !loweredTxStatus.value.includes('connect wallet'),
-  pending: loweredTxStatus.value.includes('sending'),
-  error:
-    loweredTxStatus.value.includes('rejected') ||
-    loweredTxStatus.value.includes('wrong network') ||
-    loweredTxStatus.value.includes('failed') ||
-    loweredTxStatus.value.includes('reverted') ||
-    loweredTxStatus.value.includes('insufficient') ||
-    loweredTxStatus.value.includes('connect wallet')
-}))
-
 const today = new Date()
 const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate())
+
+const completedCount = computed(() =>
+  contributions.value.filter((item) => item.completed).length
+)
+
+const pendingCount = computed(() =>
+  contributions.value.filter((item) => !item.completed).length
+)
+
+const overdueCount = computed(() =>
+  contributions.value.filter((item) => isOverdue(item)).length
+)
+
+const upcomingContributions = computed(() => {
+  return [...contributions.value]
+    .filter((item) => item.dueDate)
+    .sort((a, b) => a.dueDate - b.dueDate)
+    .slice(0, 5)
+})
 
 function formatDate(unixValue) {
   if (!unixValue) return 'No date'
@@ -299,7 +267,8 @@ function deadlineClass(contribution) {
   return 'deadline-upcoming'
 }
 
-onMounted(() => {
-  init()
+onMounted(async () => {
+  await init()
+  await loadContributions()
 })
 </script>

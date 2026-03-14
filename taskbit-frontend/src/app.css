@@ -297,6 +297,116 @@ a {
   max-width: 640px;
 }
 
+.hero-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+}
+
+/* dashboard */
+.dashboard-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+  margin-bottom: 18px;
+}
+
+.dashboard-panel {
+  border-radius: 20px;
+  padding: 18px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--border);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
+}
+
+.dashboard-panel h3 {
+  margin: 0;
+  font-family: "Playfair Display", serif;
+  font-size: 1.2rem;
+}
+
+.dashboard-panel-subtitle {
+  margin: 6px 0 0;
+  color: var(--text-soft);
+  line-height: 1.55;
+}
+
+.dashboard-quick-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.dashboard-quick-card {
+  display: block;
+  text-decoration: none;
+  border-radius: 18px;
+  padding: 16px;
+  background: rgba(255, 255, 255, 0.035);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  transition:
+    transform 0.18s ease,
+    border-color 0.18s ease,
+    background 0.18s ease;
+}
+
+.dashboard-quick-card:hover {
+  transform: translateY(-1px);
+  border-color: rgba(245, 158, 11, 0.35);
+  background: rgba(245, 158, 11, 0.07);
+}
+
+.dashboard-quick-card-title {
+  display: block;
+  font-size: 1rem;
+  font-weight: 800;
+  margin-bottom: 6px;
+}
+
+.dashboard-quick-card-text {
+  display: block;
+  color: var(--text-soft);
+  line-height: 1.55;
+  font-size: 0.92rem;
+}
+
+.dashboard-list {
+  display: grid;
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.dashboard-list-item {
+  border-radius: 16px;
+  padding: 14px;
+  background: rgba(255, 255, 255, 0.035);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.dashboard-list-item h4 {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 800;
+}
+
+.dashboard-list-item p {
+  margin: 8px 0 0;
+  color: var(--text-soft);
+  line-height: 1.55;
+}
+
+.dashboard-empty {
+  margin-top: 16px;
+  border-radius: 16px;
+  padding: 18px;
+  text-align: center;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px dashed rgba(255, 255, 255, 0.14);
+  color: var(--text-soft);
+}
+
 /* status / badges */
 .network-badge,
 .network-detail,
@@ -364,7 +474,8 @@ a {
 .action-btn,
 .delete-btn,
 .modal-close-btn,
-.calendar-nav-btn {
+.calendar-nav-btn,
+.toast-close {
   border: none;
   cursor: pointer;
   transition:
@@ -383,6 +494,10 @@ a {
   font-weight: 800;
   color: #091321;
   background: linear-gradient(135deg, #f59e0b, #fbbf24);
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .refresh-btn {
@@ -394,6 +509,10 @@ a {
   color: #ffffff;
   background: rgba(255, 255, 255, 0.05);
   border: 1px solid rgba(255, 255, 255, 0.12);
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .calendar-nav-btn {
@@ -442,13 +561,21 @@ a {
   background: rgba(255, 255, 255, 0.08);
 }
 
+.toast-close {
+  background: transparent;
+  color: #ffffff;
+  font-weight: 700;
+  font-size: 0.95rem;
+}
+
 .submit-btn:hover:not(:disabled),
 .refresh-btn:hover:not(:disabled),
 .switch-network-btn:hover:not(:disabled),
 .action-btn:hover:not(:disabled),
 .delete-btn:hover:not(:disabled),
 .modal-close-btn:hover:not(:disabled),
-.calendar-nav-btn:hover:not(:disabled) {
+.calendar-nav-btn:hover:not(:disabled),
+.toast-close:hover:not(:disabled) {
   transform: translateY(-1px);
 }
 
@@ -849,6 +976,7 @@ a {
   display: grid;
   gap: 8px;
   align-content: start;
+  min-height: 0;
 }
 
 .month-day-item {
@@ -1080,13 +1208,6 @@ a {
   font-family: monospace;
 }
 
-.toast-close {
-  background: transparent;
-  color: #ffffff;
-  font-weight: 700;
-  font-size: 0.95rem;
-}
-
 button:disabled,
 input:disabled,
 select:disabled,
@@ -1116,7 +1237,8 @@ textarea:disabled {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  .stats-bar {
+  .stats-bar,
+  .dashboard-summary-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
@@ -1146,7 +1268,8 @@ textarea:disabled {
     justify-content: flex-start;
   }
 
-  .sidebar-nav {
+  .sidebar-nav,
+  .dashboard-quick-grid {
     grid-template-columns: 1fr;
   }
 
@@ -1169,7 +1292,8 @@ textarea:disabled {
 
   .calendar-month-grid,
   .calendar-weekdays,
-  .stats-bar {
+  .stats-bar,
+  .dashboard-summary-grid {
     grid-template-columns: 1fr;
   }
 
@@ -1191,7 +1315,9 @@ textarea:disabled {
   .calendar-section,
   .network-warning-card,
   .modal-card,
-  .sidebar-panel {
+  .sidebar-panel,
+  .dashboard-panel,
+  .stat-card {
     padding: 16px;
   }
 
