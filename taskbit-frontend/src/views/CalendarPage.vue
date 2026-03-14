@@ -1,8 +1,8 @@
 <template>
-  <div class="app-shell">
-    <header class="top-nav">
-      <div class="nav-container">
-        <div class="brand">
+  <div class="app-shell dashboard-shell">
+    <aside class="sidebar-shell">
+      <div class="sidebar-panel">
+        <div class="brand sidebar-brand">
           <img src="/logo.png" class="brand-logo" alt="TaskBit Logo" />
           <div>
             <h1>{{ appBrand }}</h1>
@@ -10,153 +10,211 @@
           </div>
         </div>
 
-        <nav class="page-nav">
-          <RouterLink to="/calendar" class="page-nav-link" active-class="page-nav-link-active">
-            Calendar
-          </RouterLink>
+        <div class="sidebar-section-label">Navigation</div>
+        <nav class="page-nav sidebar-nav">
           <RouterLink
-            to="/contributions"
-            class="page-nav-link"
+            to="/calendar"
+            class="page-nav-link sidebar-nav-link"
             active-class="page-nav-link-active"
           >
-            Academic Contributions
+            <span class="nav-link-icon">📅</span>
+            <span>Calendar</span>
+          </RouterLink>
+
+          <RouterLink
+            to="/contributions"
+            class="page-nav-link sidebar-nav-link"
+            active-class="page-nav-link-active"
+          >
+            <span class="nav-link-icon">📚</span>
+            <span>Academic Contributions</span>
           </RouterLink>
         </nav>
 
-        <div class="nav-right">
-          <span class="network-badge" :class="{ 'network-badge-warning': isWrongNetwork }">
+        <div class="sidebar-section-label">Connection</div>
+        <div class="sidebar-status-stack">
+          <span class="network-badge sidebar-chip" :class="{ 'network-badge-warning': isWrongNetwork }">
             {{ networkName }}
           </span>
 
-          <span class="network-detail">{{ walletStatus }}</span>
-          <span class="network-detail">{{ contractStatus }}</span>
+          <span class="network-detail sidebar-chip">
+            {{ walletStatus }}
+          </span>
 
-          <div v-if="account" class="wallet-badge">
+          <span class="network-detail sidebar-chip">
+            {{ contractStatus }}
+          </span>
+
+          <div v-if="account" class="wallet-badge sidebar-wallet-badge">
             <span class="wallet-dot" aria-hidden="true"></span>
             {{ `${account.slice(0, 6)}...${account.slice(-4)}` }}
           </div>
         </div>
       </div>
-    </header>
+    </aside>
 
-    <main class="main-content">
-      <section class="hero hero-row">
-        <div>
+    <div class="dashboard-main">
+      <header class="content-header">
+        <div class="content-header-copy">
+          <p class="content-header-eyebrow">Workspace</p>
           <h2>Calendar Overview</h2>
-          <p>
-            View all academic contributions by due date. This is the first page shown after login.
+          <p class="content-header-subtitle">
+            View all academic contributions by due date and manage upcoming deadlines from one place.
           </p>
         </div>
 
-        <div class="hero-actions">
-          <button class="submit-btn" @click="openModal" :disabled="!account || isWrongNetwork || isBusy">
-            + Submit New Contribution
-          </button>
-          <button class="refresh-btn" @click="handleRefresh" :disabled="isBusy || isWrongNetwork">
-            {{ isRefreshing ? 'Refreshing...' : 'Refresh' }}
-          </button>
-        </div>
-      </section>
+        <div class="content-header-status">
+          <span class="network-badge" :class="{ 'network-badge-warning': isWrongNetwork }">
+            {{ networkName }}
+          </span>
 
-      <section v-if="isWrongNetwork" class="network-warning-card">
-        <div class="network-warning-copy">
-          <h3>Wrong Network Detected</h3>
-          <p>
-            Your wallet is connected, but not on <strong>{{ networkName }}</strong>.
-            Switch MetaMask to {{ networkName }} to continue.
-          </p>
-        </div>
-
-        <div class="network-warning-actions">
-          <button
-            class="switch-network-btn"
-            @click="handleSwitchNetwork"
-            :disabled="isSwitchingNetwork || isBusy"
-          >
-            {{ isSwitchingNetwork ? `Switching to ${networkName}...` : `Switch to ${networkName}` }}
-          </button>
-        </div>
-      </section>
-
-      <section class="stats-bar">
-        <div class="stat-card">
-          <span class="stat-label">Visible Contributions</span>
-          <strong class="stat-value">{{ contributions.length }}</strong>
-        </div>
-
-        <div class="stat-card">
-          <span class="stat-label">On-chain Count</span>
-          <strong class="stat-value">{{ contributionCount }}</strong>
-        </div>
-
-        <div class="stat-card">
-          <span class="stat-label">Completed</span>
-          <strong class="stat-value">{{ completedCount }}</strong>
-        </div>
-
-        <div class="stat-card">
-          <span class="stat-label">Pending</span>
-          <strong class="stat-value">{{ pendingCount }}</strong>
-        </div>
-
-        <div class="stat-card">
-          <span class="stat-label">Overdue</span>
-          <strong class="stat-value">{{ overdueCount }}</strong>
-        </div>
-      </section>
-
-      <section class="calendar-section">
-        <div class="section-header">
-          <div>
-            <h3>Task Calendar</h3>
-            <p class="section-subtitle">Contributions grouped by due date.</p>
+          <div v-if="account" class="wallet-badge header-wallet-badge">
+            <span class="wallet-dot" aria-hidden="true"></span>
+            {{ `${account.slice(0, 6)}...${account.slice(-4)}` }}
           </div>
         </div>
+      </header>
 
-        <div v-if="calendarGroups.length === 0 && !isLoadingContributions" class="empty-state">
-          <div class="empty-illustration" aria-hidden="true">🗓️</div>
-          <p>No calendar items yet. Add your first contribution.</p>
-        </div>
+      <main class="main-content">
+        <section class="toolbar-card">
+          <div class="toolbar-copy">
+            <h3>Calendar Actions</h3>
+            <p class="section-subtitle">
+              Add a new contribution or refresh your calendar data.
+            </p>
+          </div>
 
-        <div v-else class="calendar-grid">
-          <div
-            v-for="group in calendarGroups"
-            :key="group.key"
-            class="calendar-day-card"
-          >
-            <div class="calendar-day-header">
-              <strong>{{ group.label }}</strong>
-              <span>{{ group.items.length }} item(s)</span>
+          <div class="hero-actions">
+            <button class="submit-btn" @click="openModal" :disabled="!account || isWrongNetwork || isBusy">
+              + Submit New Contribution
+            </button>
+
+            <button class="refresh-btn" @click="handleRefresh" :disabled="isBusy || isWrongNetwork">
+              {{ isRefreshing ? 'Refreshing...' : 'Refresh' }}
+            </button>
+          </div>
+        </section>
+
+        <section v-if="isWrongNetwork" class="network-warning-card">
+          <div class="network-warning-copy">
+            <h3>Wrong Network Detected</h3>
+            <p>
+              Your wallet is connected, but not on <strong>{{ networkName }}</strong>.
+              Switch MetaMask to {{ networkName }} to continue.
+            </p>
+          </div>
+
+          <div class="network-warning-actions">
+            <button
+              class="switch-network-btn"
+              @click="handleSwitchNetwork"
+              :disabled="isSwitchingNetwork || isBusy"
+            >
+              {{ isSwitchingNetwork ? `Switching to ${networkName}...` : `Switch to ${networkName}` }}
+            </button>
+          </div>
+        </section>
+
+        <section class="stats-bar">
+          <div class="stat-card">
+            <span class="stat-label">Visible Contributions</span>
+            <strong class="stat-value">{{ contributions.length }}</strong>
+          </div>
+
+          <div class="stat-card">
+            <span class="stat-label">On-chain Count</span>
+            <strong class="stat-value">{{ contributionCount }}</strong>
+          </div>
+
+          <div class="stat-card">
+            <span class="stat-label">Completed</span>
+            <strong class="stat-value">{{ completedCount }}</strong>
+          </div>
+
+          <div class="stat-card">
+            <span class="stat-label">Pending</span>
+            <strong class="stat-value">{{ pendingCount }}</strong>
+          </div>
+
+          <div class="stat-card">
+            <span class="stat-label">Overdue</span>
+            <strong class="stat-value">{{ overdueCount }}</strong>
+          </div>
+        </section>
+
+        <section class="calendar-section">
+          <div class="section-header section-header-tight">
+            <div>
+              <h3>Task Calendar</h3>
+              <p class="section-subtitle">Browse contributions in a monthly calendar view.</p>
+            </div>
+          </div>
+
+          <div class="calendar-month-toolbar">
+            <button class="calendar-nav-btn" @click="goToPreviousMonth">← Previous</button>
+
+            <div class="calendar-month-title-block">
+              <h4 class="calendar-month-title">{{ currentMonthLabel }}</h4>
+              <p class="calendar-month-subtitle">
+                {{ currentMonthContributionCount }} contribution(s) this month
+              </p>
             </div>
 
-            <ul class="calendar-day-list">
-              <li
-                v-for="item in group.items"
-                :key="item.id"
-                class="calendar-day-item"
-              >
-                <div class="calendar-day-title-row">
-                  <span class="calendar-day-title">{{ item.title }}</span>
-                  <span
-                    class="mini-status-badge"
-                    :class="item.completed ? 'status-complete' : 'status-pending'"
-                  >
-                    {{ item.completed ? 'Done' : 'Pending' }}
-                  </span>
+            <button class="calendar-nav-btn" @click="goToNextMonth">Next →</button>
+          </div>
+
+          <div class="calendar-weekdays">
+            <div v-for="day in weekdayLabels" :key="day" class="calendar-weekday">
+              {{ day }}
+            </div>
+          </div>
+
+          <div class="calendar-month-grid">
+            <div
+              v-for="day in calendarDays"
+              :key="day.key"
+              class="month-day-cell"
+              :class="{
+                'is-other-month': !day.isCurrentMonth,
+                'is-today': day.isToday
+              }"
+            >
+              <div class="month-day-top">
+                <span class="month-day-number">{{ day.dayNumber }}</span>
+                <span v-if="day.items.length" class="month-day-count">
+                  {{ day.items.length }}
+                </span>
+              </div>
+
+              <div class="month-day-items">
+
+                <div
+                  v-for="item in day.items.slice(0,2)"
+                  :key="item.id"
+                  class="month-day-item"
+                  :class="deadlineClass(item)"
+                >
+                  <div class="month-day-item-title">{{ item.title }}</div>
+
+                  <div class="month-day-item-meta">
+                    <span>{{ item.categoryLabel }}</span>
+                    <span>{{ item.completed ? 'Done' : 'Pending' }}</span>
+                  </div>
                 </div>
 
-                <div class="calendar-item-meta">
-                  <small>{{ item.categoryLabel }}</small>
-                  <span class="deadline-badge" :class="deadlineClass(item)">
-                    {{ deadlineLabel(item) }}
-                  </span>
+                <div
+                  v-if="day.items.length > 2"
+                  class="month-day-more"
+                >
+                  +{{ day.items.length - 2 }} more
                 </div>
-              </li>
-            </ul>
+
+              </div>
+            </div>
           </div>
-        </div>
-      </section>
-    </main>
+        </section>
+      </main>
+    </div>
 
     <div v-if="showModal" class="modal-backdrop" @click.self="closeModal">
       <div class="modal-card">
@@ -289,9 +347,12 @@ const {
 const isRefreshing = ref(false)
 const isSwitchingNetwork = ref(false)
 const showModal = ref(false)
+const currentMonthDate = ref(startOfMonth(new Date()))
+
+const weekdayLabels = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 
 const today = new Date()
-const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate())
+const todayStart = startOfDay(today)
 const todayString = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(
   today.getDate()
 ).padStart(2, '0')}`
@@ -357,29 +418,113 @@ const toastClass = computed(() => ({
     loweredTxStatus.value.includes('connect wallet')
 }))
 
-const calendarGroups = computed(() => {
-  const grouped = contributions.value.reduce((acc, item) => {
-    if (!item.dueDate) return acc
+const contributionsByDate = computed(() => {
+  const grouped = {}
 
-    const key = new Date(item.dueDate * 1000).toISOString().slice(0, 10)
+  for (const item of contributions.value) {
+    if (!item.dueDate) continue
+    const date = new Date(item.dueDate * 1000)
+    const key = formatDateKey(date)
 
-    if (!acc[key]) acc[key] = []
-    acc[key].push(item)
-    return acc
-  }, {})
+    if (!grouped[key]) grouped[key] = []
+    grouped[key].push(item)
+  }
 
-  return Object.entries(grouped)
-    .sort(([a], [b]) => a.localeCompare(b))
-    .map(([key, items]) => ({
-      key,
-      label: new Date(`${key}T00:00:00`).toLocaleDateString('en-US', {
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric'
-      }),
-      items
-    }))
+  return grouped
 })
+
+const currentMonthLabel = computed(() =>
+  currentMonthDate.value.toLocaleDateString('en-US', {
+    month: 'long',
+    year: 'numeric'
+  })
+)
+
+const currentMonthContributionCount = computed(() => {
+  const year = currentMonthDate.value.getFullYear()
+  const month = currentMonthDate.value.getMonth()
+
+  return contributions.value.filter((item) => {
+    if (!item.dueDate) return false
+    const due = new Date(item.dueDate * 1000)
+    return due.getFullYear() === year && due.getMonth() === month
+  }).length
+})
+
+const calendarDays = computed(() => {
+  const firstDayOfMonth = startOfMonth(currentMonthDate.value)
+  const lastDayOfMonth = endOfMonth(currentMonthDate.value)
+
+  const gridStart = new Date(firstDayOfMonth)
+  gridStart.setDate(gridStart.getDate() - gridStart.getDay())
+
+  const gridEnd = new Date(lastDayOfMonth)
+  gridEnd.setDate(gridEnd.getDate() + (6 - gridEnd.getDay()))
+
+  const days = []
+  const cursor = new Date(gridStart)
+
+  while (cursor <= gridEnd) {
+    const key = formatDateKey(cursor)
+    const items = contributionsByDate.value[key] || []
+
+    days.push({
+      key,
+      date: new Date(cursor),
+      dayNumber: cursor.getDate(),
+      isCurrentMonth: cursor.getMonth() === currentMonthDate.value.getMonth(),
+      isToday: isSameDate(cursor, todayStart),
+      items
+    })
+
+    cursor.setDate(cursor.getDate() + 1)
+  }
+
+  return days
+})
+
+function startOfDay(date) {
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate())
+}
+
+function startOfMonth(date) {
+  return new Date(date.getFullYear(), date.getMonth(), 1)
+}
+
+function endOfMonth(date) {
+  return new Date(date.getFullYear(), date.getMonth() + 1, 0)
+}
+
+function formatDateKey(date) {
+  const y = date.getFullYear()
+  const m = String(date.getMonth() + 1).padStart(2, '0')
+  const d = String(date.getDate()).padStart(2, '0')
+  return `${y}-${m}-${d}`
+}
+
+function isSameDate(a, b) {
+  return (
+    a.getFullYear() === b.getFullYear() &&
+    a.getMonth() === b.getMonth() &&
+    a.getDate() === b.getDate()
+  )
+}
+
+function goToPreviousMonth() {
+  currentMonthDate.value = new Date(
+    currentMonthDate.value.getFullYear(),
+    currentMonthDate.value.getMonth() - 1,
+    1
+  )
+}
+
+function goToNextMonth() {
+  currentMonthDate.value = new Date(
+    currentMonthDate.value.getFullYear(),
+    currentMonthDate.value.getMonth() + 1,
+    1
+  )
+}
 
 function isOverdue(contribution) {
   if (contribution.completed || !contribution.dueDate) return false
@@ -393,13 +538,6 @@ function isDueToday(contribution) {
   const due = new Date(contribution.dueDate * 1000)
   const dueStart = new Date(due.getFullYear(), due.getMonth(), due.getDate())
   return dueStart.getTime() === todayStart.getTime()
-}
-
-function deadlineLabel(contribution) {
-  if (contribution.completed) return 'Completed'
-  if (isOverdue(contribution)) return 'Overdue'
-  if (isDueToday(contribution)) return 'Due Today'
-  return 'Upcoming'
 }
 
 function deadlineClass(contribution) {

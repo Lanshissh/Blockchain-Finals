@@ -1,8 +1,8 @@
 <template>
-  <div class="app-shell">
-    <header class="top-nav">
-      <div class="nav-container">
-        <div class="brand">
+  <div class="app-shell dashboard-shell">
+    <aside class="sidebar-shell">
+      <div class="sidebar-panel">
+        <div class="brand sidebar-brand">
           <img src="/logo.png" class="brand-logo" alt="TaskBit Logo" />
           <div>
             <h1>{{ appBrand }}</h1>
@@ -10,118 +10,163 @@
           </div>
         </div>
 
-        <nav class="page-nav">
-          <RouterLink to="/calendar" class="page-nav-link" active-class="page-nav-link-active">
-            Calendar
-          </RouterLink>
+        <div class="sidebar-section-label">Navigation</div>
+        <nav class="page-nav sidebar-nav">
           <RouterLink
-            to="/contributions"
-            class="page-nav-link"
+            to="/calendar"
+            class="page-nav-link sidebar-nav-link"
             active-class="page-nav-link-active"
           >
-            Academic Contributions
+            <span class="nav-link-icon">📅</span>
+            <span>Calendar</span>
+          </RouterLink>
+
+          <RouterLink
+            to="/contributions"
+            class="page-nav-link sidebar-nav-link"
+            active-class="page-nav-link-active"
+          >
+            <span class="nav-link-icon">📚</span>
+            <span>Academic Contributions</span>
           </RouterLink>
         </nav>
 
-        <div class="nav-right">
-          <span class="network-badge" :class="{ 'network-badge-warning': isWrongNetwork }">
+        <div class="sidebar-section-label">Connection</div>
+        <div class="sidebar-status-stack">
+          <span class="network-badge sidebar-chip" :class="{ 'network-badge-warning': isWrongNetwork }">
             {{ networkName }}
           </span>
 
-          <span class="network-detail">{{ walletStatus }}</span>
-          <span class="network-detail">{{ contractStatus }}</span>
+          <span class="network-detail sidebar-chip">
+            {{ walletStatus }}
+          </span>
 
-          <div v-if="account" class="wallet-badge">
+          <span class="network-detail sidebar-chip">
+            {{ contractStatus }}
+          </span>
+
+          <div v-if="account" class="wallet-badge sidebar-wallet-badge">
             <span class="wallet-dot" aria-hidden="true"></span>
             {{ `${account.slice(0, 6)}...${account.slice(-4)}` }}
           </div>
         </div>
       </div>
-    </header>
+    </aside>
 
-    <main class="main-content">
-      <section class="hero">
-        <h2>Academic Contributions</h2>
-        <p>View, complete, and delete your recorded academic contributions.</p>
-      </section>
+    <div class="dashboard-main">
+      <header class="content-header">
+        <div class="content-header-copy">
+          <p class="content-header-eyebrow">Workspace</p>
+          <h2>Academic Contributions</h2>
+          <p class="content-header-subtitle">
+            Review, complete, and delete your recorded academic contributions.
+          </p>
+        </div>
 
-      <section class="contribution-list">
-        <div class="section-header">
-          <div>
-            <h3>My Academic Contributions</h3>
+        <div class="content-header-status">
+          <span class="network-badge" :class="{ 'network-badge-warning': isWrongNetwork }">
+            {{ networkName }}
+          </span>
+
+          <div v-if="account" class="wallet-badge header-wallet-badge">
+            <span class="wallet-dot" aria-hidden="true"></span>
+            {{ `${account.slice(0, 6)}...${account.slice(-4)}` }}
+          </div>
+        </div>
+      </header>
+
+      <main class="main-content">
+        <section class="toolbar-card">
+          <div class="toolbar-copy">
+            <h3>Contribution Actions</h3>
             <p class="section-subtitle">
-              Your records are loaded from the blockchain and organized here.
+              Refresh your list and manage contribution status below.
             </p>
           </div>
 
-          <button class="refresh-btn" @click="loadContributions" :disabled="isLoadingContributions">
-            {{ isLoadingContributions ? 'Refreshing...' : 'Refresh' }}
-          </button>
-        </div>
+          <div class="hero-actions">
+            <button class="refresh-btn" @click="loadContributions" :disabled="isLoadingContributions">
+              {{ isLoadingContributions ? 'Refreshing...' : 'Refresh' }}
+            </button>
+          </div>
+        </section>
 
-        <div v-if="contributions.length === 0 && !isLoadingContributions" class="empty-state">
-          <div class="empty-illustration" aria-hidden="true">📚</div>
-          <p>No contributions recorded yet.</p>
-        </div>
+        <section class="contribution-list">
+          <div class="section-header section-header-tight">
+            <div>
+              <h3>My Academic Contributions</h3>
+              <p class="section-subtitle">
+                Your records are loaded from the blockchain and organized here.
+              </p>
+            </div>
+          </div>
 
-        <ul v-else>
-          <li
-            v-for="contribution in contributions"
-            :key="contribution.id"
-            class="contribution-card"
-            :class="{ completed: contribution.completed, pending: !contribution.completed }"
-          >
-            <div class="card-top">
-              <div class="card-copy">
-                <div class="card-heading-row">
-                  <h4 class="contribution-title">{{ contribution.title }}</h4>
+          <div v-if="contributions.length === 0 && !isLoadingContributions" class="empty-state">
+            <div class="empty-illustration" aria-hidden="true">📚</div>
+            <p>No contributions recorded yet.</p>
+          </div>
 
-                  <span
-                    class="status-badge"
-                    :class="contribution.completed ? 'status-complete' : 'status-pending'"
-                  >
-                    {{ contribution.completed ? 'Completed' : 'Pending' }}
-                  </span>
+          <ul v-else>
+            <li
+              v-for="contribution in contributions"
+              :key="contribution.id"
+              class="contribution-card"
+              :class="{ completed: contribution.completed, pending: !contribution.completed }"
+            >
+              <div class="card-top">
+                <div class="card-copy">
+                  <div class="card-heading-row">
+                    <h4 class="contribution-title">{{ contribution.title }}</h4>
+
+                    <span
+                      class="status-badge"
+                      :class="contribution.completed ? 'status-complete' : 'status-pending'"
+                    >
+                      {{ contribution.completed ? 'Completed' : 'Pending' }}
+                    </span>
+                  </div>
+
+                  <div class="meta-row meta-row-wrap">
+                    <span class="category-badge">{{ contribution.categoryLabel }}</span>
+                    <span class="timestamp">Created: {{ formatDate(contribution.createdAt) }}</span>
+
+                    <span v-if="contribution.dueDate" class="due-date-badge">
+                      Due: {{ formatDate(contribution.dueDate) }}
+                    </span>
+
+                    <span v-if="contribution.dueDate" class="deadline-badge" :class="deadlineClass(contribution)">
+                      {{ deadlineLabel(contribution) }}
+                    </span>
+                  </div>
+
+                  <p class="contribution-description">
+                    {{ contribution.description }}
+                  </p>
                 </div>
-
-                <div class="meta-row meta-row-wrap">
-                  <span class="category-badge">{{ contribution.categoryLabel }}</span>
-                  <span class="timestamp">Created: {{ formatDate(contribution.createdAt) }}</span>
-                  <span v-if="contribution.dueDate" class="due-date-badge">
-                    Due: {{ formatDate(contribution.dueDate) }}
-                  </span>
-                  <span v-if="contribution.dueDate" class="deadline-badge" :class="deadlineClass(contribution)">
-                    {{ deadlineLabel(contribution) }}
-                  </span>
-                </div>
-
-                <p class="contribution-description">
-                  {{ contribution.description }}
-                </p>
               </div>
-            </div>
 
-            <div class="card-actions">
-              <button
-                class="action-btn"
-                @click="toggleContribution(contribution.id)"
-                :disabled="!canEditContributions"
-              >
-                {{ contribution.completed ? 'Undo' : 'Mark Complete' }}
-              </button>
+              <div class="card-actions">
+                <button
+                  class="action-btn"
+                  @click="toggleContribution(contribution.id)"
+                  :disabled="!canEditContributions"
+                >
+                  {{ contribution.completed ? 'Undo' : 'Mark Complete' }}
+                </button>
 
-              <button
-                class="delete-btn"
-                @click="removeContribution(contribution.id)"
-                :disabled="!canEditContributions"
-              >
-                Delete
-              </button>
-            </div>
-          </li>
-        </ul>
-      </section>
-    </main>
+                <button
+                  class="delete-btn"
+                  @click="removeContribution(contribution.id)"
+                  :disabled="!canEditContributions"
+                >
+                  Delete
+                </button>
+              </div>
+            </li>
+          </ul>
+        </section>
+      </main>
+    </div>
 
     <div
       v-if="txStatus && txStatus !== 'No transaction yet'"
