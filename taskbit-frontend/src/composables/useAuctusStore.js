@@ -135,6 +135,10 @@ export function useAuctusStore() {
     }
   })
 
+  function normalizeAddress(value) {
+    return String(value || '').trim().toLowerCase()
+  }
+
   function getTodayString() {
     const now = new Date()
     return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(
@@ -230,22 +234,54 @@ export function useAuctusStore() {
       return
     }
 
-    try {
-      const [reviewerRole, adminRole, professorRole, ownerAddress] = await Promise.all([
-        checkReviewerRole(contract, account.value),
-        contract.admins(account.value),
-        contract.professors(account.value),
-        contract.owner()
-      ])
+    const connectedAddress = normalizeAddress(account.value)
 
-      isReviewer.value = Boolean(reviewerRole)
-      isAdmin.value = Boolean(adminRole)
-      isProfessor.value = Boolean(professorRole)
-      isOwner.value = String(ownerAddress || '').toLowerCase() === account.value.toLowerCase()
+    isReviewer.value = false
+    isProfessor.value = false
+    isAdmin.value = false
+    isOwner.value = false
+
+    try {
+      const ownerAddress = await contract.owner()
+      isOwner.value = normalizeAddress(ownerAddress) === connectedAddress
     } catch (error) {
-      console.error('Failed to load role state:', error)
-      resetRoles()
+      console.error('Failed to read owner state:', error)
     }
+
+    try {
+      const adminRole = await contract.admins(account.value)
+      isAdmin.value = Boolean(adminRole)
+    } catch (error) {
+      console.error('Failed to read admin state:', error)
+    }
+
+    try {
+      const professorRole = await contract.professors(account.value)
+      isProfessor.value = Boolean(professorRole)
+    } catch (error) {
+      console.error('Failed to read professor state:', error)
+    }
+
+    try {
+      const reviewerRole = await checkReviewerRole(contract, account.value)
+      isReviewer.value = Boolean(reviewerRole)
+    } catch (error) {
+      console.error('Failed to read reviewer state:', error)
+    }
+
+    if (isOwner.value) {
+      isAdmin.value = true
+      isReviewer.value = true
+    }
+
+    console.log('Role state loaded:', {
+      account: account.value,
+      isOwner: isOwner.value,
+      isAdmin: isAdmin.value,
+      isProfessor: isProfessor.value,
+      isReviewer: isReviewer.value,
+      userRole: userRole.value
+    })
   }
 
   async function loadContributions() {
@@ -260,6 +296,8 @@ export function useAuctusStore() {
     isLoadingContributions.value = true
 
     try {
+      await loadRoleState()
+
       const [contributionList, count, reputationValue] = await Promise.all([
         fetchMyContributions(contract),
         fetchMyContributionCount(contract),
@@ -269,10 +307,11 @@ export function useAuctusStore() {
       contributions.value = contributionList
       contributionCount.value = count
       reputation.value = Number(reputationValue || 0)
-
-      await loadRoleState()
     } catch (error) {
       console.error('Failed to load contributions:', error)
+      contributions.value = []
+      contributionCount.value = 0
+      reputation.value = 0
       txStatus.value = 'Failed to load contributions.'
     } finally {
       isLoadingContributions.value = false
@@ -292,6 +331,7 @@ export function useAuctusStore() {
       const ready = await syncSession({ requestAccess: true })
 
       if (ready) {
+        await loadRoleState()
         await loadContributions()
         return true
       }
@@ -311,6 +351,7 @@ export function useAuctusStore() {
     const ready = await syncSession({ requestAccess: false })
 
     if (ready) {
+      await loadRoleState()
       await loadContributions()
     }
 
@@ -329,6 +370,7 @@ export function useAuctusStore() {
       const ready = await syncSession({ requestAccess: false })
 
       if (ready) {
+        await loadRoleState()
         await loadContributions()
         txStatus.value = `${APP_BRAND} is now connected to ${APP_NETWORK.name}.`
         return true
