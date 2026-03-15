@@ -45,11 +45,21 @@ function normalizeCategoryValue(category) {
 }
 
 function normalizeDueDateToUnix(dueDate) {
-  if (!dueDate) {
+  if (!dueDate || typeof dueDate !== 'string') {
     return 0
   }
 
-  const parsed = new Date(`${dueDate}T00:00:00`)
+  const parts = dueDate.split('-').map(Number)
+
+  if (parts.length !== 3 || parts.some((value) => Number.isNaN(value))) {
+    return 0
+  }
+
+  const [year, month, day] = parts
+
+  // Use local end-of-day so a selected date remains valid for the whole day.
+  const parsed = new Date(year, month - 1, day, 23, 59, 59)
+
   return Number.isNaN(parsed.getTime()) ? 0 : Math.floor(parsed.getTime() / 1000)
 }
 
@@ -316,7 +326,7 @@ export function getReadableBlockchainError(error) {
   }
 
   if (message.includes('bad_due')) {
-    return 'Please select a valid due date that is not in the past.'
+    return 'Please select a future due date. Avoid using today if the selected day is already in progress.'
   }
 
   if (message.includes('bad_addr')) {

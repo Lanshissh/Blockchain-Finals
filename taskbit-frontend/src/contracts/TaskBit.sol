@@ -127,7 +127,10 @@ contract TaskBit is ERC721, Ownable {
     ) external {
         require(bytes(title).length > 0, "NO_TITLE");
         require(bytes(description).length > 0, "NO_DESC");
-        require(dueDate >= block.timestamp, "BAD_DUE");
+        require(dueDate > 0, "BAD_DUE");
+
+        uint256 normalizedDueDate = _normalizeDueDate(dueDate);
+        require(normalizedDueDate >= block.timestamp, "BAD_DUE");
 
         uint256 contributionId = nextContributionId;
         nextContributionId++;
@@ -140,7 +143,7 @@ contract TaskBit is ERC721, Ownable {
             description: description,
             completed: false,
             createdAt: block.timestamp,
-            dueDate: dueDate,
+            dueDate: normalizedDueDate,
             deleted: false,
             nftMinted: false,
             status: ContributionStatus.Pending,
@@ -158,7 +161,7 @@ contract TaskBit is ERC721, Ownable {
             category,
             description,
             block.timestamp,
-            dueDate
+            normalizedDueDate
         );
     }
 
@@ -342,5 +345,10 @@ contract TaskBit is ERC721, Ownable {
 
     function _isReviewer(address account) internal view returns (bool) {
         return owner() == account || admins[account] || professors[account];
+    }
+
+    function _normalizeDueDate(uint256 dueDate) internal pure returns (uint256) {
+        uint256 startOfDay = (dueDate / 1 days) * 1 days;
+        return startOfDay + 1 days - 1;
     }
 }
