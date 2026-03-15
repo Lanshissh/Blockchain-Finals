@@ -77,6 +77,8 @@ export function useAuctusStore() {
   let removeAccountsListener = null
   let removeChainListener = null
 
+  const logoutStorageKey = 'taskbit_logged_out'
+
   const isConnected = computed(() => Boolean(account.value))
 
   const isWrongNetwork = computed(() => {
@@ -198,6 +200,21 @@ export function useAuctusStore() {
     isProfessor.value = false
     isAdmin.value = false
     isOwner.value = false
+  }
+
+  function setLoggedOutFlag() {
+    if (typeof window === 'undefined') return
+    window.sessionStorage.setItem(logoutStorageKey, '1')
+  }
+
+  function clearLoggedOutFlag() {
+    if (typeof window === 'undefined') return
+    window.sessionStorage.removeItem(logoutStorageKey)
+  }
+
+  function hasLoggedOutFlag() {
+    if (typeof window === 'undefined') return false
+    return window.sessionStorage.getItem(logoutStorageKey) === '1'
   }
 
   function clearSession(message = 'Wallet disconnected') {
@@ -467,6 +484,7 @@ export function useAuctusStore() {
     }
 
     isConnecting.value = true
+    clearLoggedOutFlag()
 
     try {
       const ready = await syncSession({ requestAccess: true })
@@ -488,7 +506,18 @@ export function useAuctusStore() {
     }
   }
 
+  function disconnectWallet() {
+    setLoggedOutFlag()
+    clearSession('Wallet disconnected')
+    txStatus.value = 'You have been logged out.'
+  }
+
   async function restoreWalletSession() {
+    if (hasLoggedOutFlag()) {
+      clearSession('Wallet disconnected')
+      return false
+    }
+
     const ready = await syncSession({ requestAccess: false })
 
     if (ready) {
@@ -768,11 +797,13 @@ export function useAuctusStore() {
     if (!removeAccountsListener) {
       removeAccountsListener = onAccountsChanged(async (accounts) => {
         if (!accounts.length) {
+          setLoggedOutFlag()
           clearSession('Wallet disconnected')
           txStatus.value = 'Wallet disconnected.'
           return
         }
 
+        clearLoggedOutFlag()
         await restoreWalletSession()
         txStatus.value = 'Wallet account changed.'
       })
@@ -838,6 +869,7 @@ export function useAuctusStore() {
     isConnecting,
     isLoadingContributions,
     connectWallet,
+    disconnectWallet,
     restoreWalletSession,
     switchNetwork,
     loadContributions,

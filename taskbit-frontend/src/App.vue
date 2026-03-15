@@ -1,10 +1,11 @@
 <script setup>
 import { computed, onMounted } from 'vue'
-import { RouterLink, RouterView, useRoute } from 'vue-router'
+import { RouterLink, RouterView, useRoute, useRouter } from 'vue-router'
 import { useAuctusStore } from './composables/useAuctusStore'
 
 const store = useAuctusStore()
 const route = useRoute()
+const router = useRouter()
 
 onMounted(() => {
   store.init()
@@ -89,6 +90,11 @@ function shortenAddress(address) {
   const value = String(address || '')
   if (value.length < 10) return value
   return `${value.slice(0, 6)}...${value.slice(-4)}`
+}
+
+function handleLogout() {
+  store.disconnectWallet()
+  router.replace('/login')
 }
 
 function iconPath(icon) {
@@ -198,6 +204,15 @@ function iconPath(icon) {
               {{ store.roleLabel.value }}
             </span>
           </div>
+
+          <button
+            v-if="isAuthenticated"
+            class="header-button danger"
+            type="button"
+            @click="handleLogout"
+          >
+            Log out
+          </button>
         </div>
       </header>
 
@@ -435,6 +450,11 @@ function iconPath(icon) {
 .header-button.warning {
   color: #7c2d12;
   background: #fed7aa;
+}
+
+.header-button.danger {
+  color: white;
+  background: linear-gradient(135deg, #dc2626, #b91c1c);
 }
 
 .header-chips {
