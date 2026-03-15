@@ -119,9 +119,7 @@ async function finalizeTransaction(tx) {
   }
 }
 
-export async function fetchMyContributions(contract) {
-  const contributions = await contract.getMyContributions()
-
+function normalizeContributionList(contributions) {
   return sortContributions(
     contributions
       .map(mapContractContribution)
@@ -129,14 +127,80 @@ export async function fetchMyContributions(contract) {
   )
 }
 
+function extractRevertReason(error) {
+  return (
+    error?.reason ||
+    error?.shortMessage ||
+    error?.info?.error?.message ||
+    error?.error?.message ||
+    error?.message ||
+    ''
+  )
+}
+
+export function isUnauthorizedReadError(error) {
+  const rawMessage = extractRevertReason(error)
+  const message = String(rawMessage).toLowerCase()
+
+  return (
+    error?.code === 'CALL_EXCEPTION' ||
+    message.includes('execution reverted') ||
+    message.includes('require(false)') ||
+    message.includes('reverted') ||
+    message.includes('no_reviewer') ||
+    message.includes('no_admin') ||
+    message.includes('not authorized') ||
+    message.includes('permission')
+  )
+}
+
+export async function fetchMyContributions(contract) {
+  const contributions = await contract.getMyContributions()
+  return normalizeContributionList(contributions)
+}
+
 export async function fetchAllContributions(contract) {
   const contributions = await contract.getAllContributions()
+  return normalizeContributionList(contributions)
+}
 
-  return sortContributions(
-    contributions
-      .map(mapContractContribution)
-      .filter((contribution) => !contribution.deleted)
-  )
+export async function fetchBestAvailableContributions(contract, options = {}) {
+  const preferAll = Boolean(options.preferAll)
+
+  if (!preferAll) {
+    const contributions = await fetchMyContributions(contract)
+
+    return {
+      contributions,
+      source: 'mine',
+      usedFallback: false,
+      fallbackReason: ''
+    }
+  }
+
+  try {
+    const contributions = await fetchAllContributions(contract)
+
+    return {
+      contributions,
+      source: 'all',
+      usedFallback: false,
+      fallbackReason: ''
+    }
+  } catch (error) {
+    if (!isUnauthorizedReadError(error)) {
+      throw error
+    }
+
+    const contributions = await fetchMyContributions(contract)
+
+    return {
+      contributions,
+      source: 'mine',
+      usedFallback: true,
+      fallbackReason: extractRevertReason(error)
+    }
+  }
 }
 
 export async function fetchPendingContributions(contract) {
@@ -210,17 +274,6 @@ export async function setAdminRole(contract, account, isActive) {
   return finalizeTransaction(tx)
 }
 
-function extractRevertReason(error) {
-  return (
-    error?.reason ||
-    error?.shortMessage ||
-    error?.info?.error?.message ||
-    error?.error?.message ||
-    error?.message ||
-    ''
-  )
-}
-
 export function getReadableBlockchainError(error) {
   const rawMessage = extractRevertReason(error)
   const message = String(rawMessage).toLowerCase()
@@ -266,7 +319,7 @@ export function getReadableBlockchainError(error) {
   }
 
   if (message.includes('no_reviewer')) {
-    return 'Only the owner, admin, or professor can review contributions.'
+    return 'Only the owner, admin, professor, or reviewer can perform this action.'
   }
 
   if (message.includes('no_contrib')) {
@@ -301,8 +354,11 @@ export function getReadableBlockchainError(error) {
     return 'NFT has already been minted for this contribution.'
   }
 
-  if (!rawMessage && error?.code === 'CALL_EXCEPTION') {
-    return 'Transaction failed. You may not have permission for this action on the contract.'
+  if (
+    error?.code === 'CALL_EXCEPTION' &&
+    (message.includes('require(false)') || !rawMessage)
+  ) {
+    return 'The deployed contract rejected this read or write call. This usually means the contract access rules do not match the frontend role logic.'
   }
 
   if (

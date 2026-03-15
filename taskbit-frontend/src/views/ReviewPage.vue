@@ -4,460 +4,635 @@ import { useAuctusStore } from '../composables/useAuctusStore'
 
 const store = useAuctusStore()
 
-const pointsByContribution = ref({})
-const activeFilter = ref('pending')
-const searchTerm = ref('')
+const activeTab = ref('pending')
+const searchQuery = ref('')
+const approvingId = ref(null)
+const rejectingId = ref(null)
+const pointsInput = ref({})
+const showMineInReview = ref(true)
 
 onMounted(async () => {
-  await store.init()
   await store.loadContributions()
 })
 
-const canReview = computed(
-  () =>
-    store.isReviewer.value ||
-    store.isProfessor.value ||
-    store.isAdmin.value ||
-    store.isOwner.value
-)
+const allLoadedContributions = computed(() => store.visibleContributions.value || [])
+const myContributions = computed(() => store.myContributions.value || [])
 
-const allReviewItems = computed(() => {
-  return [...store.reviewContributions.value].sort((a, b) => {
-    if (a.status !== b.status) return a.status - b.status
-    if (a.dueDate !== b.dueDate) return a.dueDate - b.dueDate
-    return b.createdAt - a.createdAt
+const contributionAccessMode = computed(() => store.contributionAccessMode.value || 'mine')
+const totalLoadedCount = computed(() => allLoadedContributions.value.length)
+const myLoadedCount = computed(() => myContributions.value.length)
+
+const reviewSourceContributions = computed(() => {
+  const allItems = allLoadedContributions.value || []
+  const myAddress = String(store.account.value || '').toLowerCase()
+
+  return allItems.filter((item) => {
+    const studentAddress = String(item.student || '').toLowerCase()
+    const isMine = studentAddress === myAddress
+
+    if (showMineInReview.value) {
+      return true
+    }
+
+    return !isMine
   })
 })
 
-const filteredItems = computed(() => {
-  const keyword = searchTerm.value.trim().toLowerCase()
+const reviewableCount = computed(() => reviewSourceContributions.value.length)
 
-  return allReviewItems.value.filter((item) => {
-    const matchesFilter =
-      activeFilter.value === 'all'
-        ? true
-        : activeFilter.value === 'pending'
-          ? Number(item.status) === 0
-          : activeFilter.value === 'approved'
-            ? Number(item.status) === 1
-            : Number(item.status) === 2
+const pendingCount = computed(() =>
+  reviewSourceContributions.value.filter((item) => Number(item.status) === 0).length
+)
 
-    const matchesSearch =
-      !keyword ||
-      item.title.toLowerCase().includes(keyword) ||
-      item.description.toLowerCase().includes(keyword) ||
-      item.student.toLowerCase().includes(keyword) ||
-      item.categoryLabel.toLowerCase().includes(keyword)
+const approvedCount = computed(() =>
+  reviewSourceContributions.value.filter((item) => Number(item.status) === 1).length
+)
 
-    return matchesFilter && matchesSearch && !item.deleted
+const rejectedCount = computed(() =>
+  reviewSourceContributions.value.filter((item) => Number(item.status) === 2).length
+)
+
+const filteredReviewContributions = computed(() => {
+  const query = searchQuery.value.trim().toLowerCase()
+
+  return reviewSourceContributions.value.filter((item) => {
+    const matchesTab =
+      activeTab.value === 'all' ? true : getStatusKey(item.status) === activeTab.value
+
+    if (!matchesTab) {
+      return false
+    }
+
+    if (!query) {
+      return true
+    }
+
+    const haystack = [
+      item.title,
+      item.description,
+      item.student,
+      item.categoryLabel,
+      item.statusLabel
+    ]
+      .filter(Boolean)
+      .join(' ')
+      .toLowerCase()
+
+    return haystack.includes(query)
   })
 })
 
-const pendingCount = computed(
-  () => allReviewItems.value.filter((item) => Number(item.status) === 0).length
-)
+const emptyStateTitle = computed(() => {
+  if (filteredReviewContributions.value.length === 0 && totalLoadedCount.value > 0) {
+    if (!showMineInReview.value && myLoadedCount.value > 0) {
+      return 'Only your own contributions are loaded'
+    }
 
-const approvedCount = computed(
-  () => allReviewItems.value.filter((item) => Number(item.status) === 1).length
-)
+    return 'No contributions found'
+  }
 
-const rejectedCount = computed(
-  () => allReviewItems.value.filter((item) => Number(item.status) === 2).length
-)
+  return 'No contributions to review'
+})
 
-function formatAddress(address) {
+const emptyStateMessage = computed(() => {
+  if (filteredReviewContributions.value.length === 0 && totalLoadedCount.value > 0) {
+    if (!showMineInReview.value && myLoadedCount.value > 0) {
+      return 'Your loaded contribution belongs to the connected wallet. Turn on "Show my submissions" to display it here.'
+    }
+
+    return 'There are no contributions matching the current filter.'
+  }
+
+  return 'Once contributions are available, they will appear here for review.'
+})
+
+function getStatusKey(status) {
+  const numeric = Number(status)
+
+  if (numeric === 0) return 'pending'
+  if (numeric === 1) return 'approved'
+  if (numeric === 2) return 'rejected'
+  return 'pending'
+}
+
+function formatDate(timestamp) {
+  const value = Number(timestamp || 0)
+  if (!value) return '—'
+  return new Date(value * 1000).toLocaleDateString()
+}
+
+function shortenAddress(address) {
   const value = String(address || '')
-  if (value.length < 12) return value
+  if (!value || value.length < 10) return value || '—'
   return `${value.slice(0, 6)}...${value.slice(-4)}`
 }
 
-function formatDate(unixSeconds) {
-  const value = Number(unixSeconds || 0)
-  if (!value) return '—'
-
-  return new Date(value * 1000).toLocaleDateString(undefined, {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric'
-  })
+function getPointsValue(id) {
+  const raw = pointsInput.value[id]
+  const numeric = Number(raw)
+  return Number.isFinite(numeric) && numeric >= 0 ? numeric : 0
 }
 
-function formatDateTime(unixSeconds) {
-  const value = Number(unixSeconds || 0)
-  if (!value) return '—'
-
-  return new Date(value * 1000).toLocaleString(undefined, {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-    hour: 'numeric',
-    minute: '2-digit'
-  })
+function isMine(item) {
+  const myAddress = String(store.account.value || '').toLowerCase()
+  const studentAddress = String(item.student || '').toLowerCase()
+  return myAddress && studentAddress === myAddress
 }
 
-function getPointsValue(contributionId) {
-  return Number(pointsByContribution.value[contributionId] || 0)
-}
-
-function setPointsValue(contributionId, value) {
-  pointsByContribution.value = {
-    ...pointsByContribution.value,
-    [contributionId]: Math.max(0, Number(value) || 0)
+async function handleApprove(id) {
+  approvingId.value = id
+  try {
+    await store.approveContribution(id, getPointsValue(id))
+  } finally {
+    approvingId.value = null
   }
 }
 
-async function handleApprove(contributionId) {
-  await store.approveContribution(contributionId, getPointsValue(contributionId))
+async function handleReject(id) {
+  rejectingId.value = id
+  try {
+    await store.rejectContribution(id)
+  } finally {
+    rejectingId.value = null
+  }
 }
 
-async function handleReject(contributionId) {
-  await store.rejectContribution(contributionId)
-}
-
-function statusClass(status) {
-  const value = Number(status)
-
-  if (value === 1) return 'approved'
-  if (value === 2) return 'rejected'
-  return 'pending'
+function statusBadgeClass(status) {
+  const key = getStatusKey(status)
+  if (key === 'approved') return 'status-badge approved'
+  if (key === 'rejected') return 'status-badge rejected'
+  return 'status-badge pending'
 }
 </script>
 
 <template>
   <section class="review-page">
     <div class="review-hero card">
-      <div>
-        <p class="eyebrow">Review Center</p>
+      <div class="review-hero-copy">
+        <p class="section-eyebrow">Review Center</p>
         <h1>Review academic contributions</h1>
-        <p class="subtext">
+        <p>
           Approve or reject student submissions, assign points, and track review activity.
         </p>
       </div>
 
-      <div class="hero-stats">
-        <div class="stat-pill pending">
+      <div class="review-stats">
+        <div class="mini-stat pending">
           <span>Pending</span>
           <strong>{{ pendingCount }}</strong>
         </div>
-        <div class="stat-pill approved">
+
+        <div class="mini-stat approved">
           <span>Approved</span>
           <strong>{{ approvedCount }}</strong>
         </div>
-        <div class="stat-pill rejected">
+
+        <div class="mini-stat rejected">
           <span>Rejected</span>
           <strong>{{ rejectedCount }}</strong>
         </div>
       </div>
     </div>
 
-    <div v-if="!canReview" class="empty-state card">
-      <h2>Access restricted</h2>
-      <p>Only reviewers, professors, admins, or the contract owner can access this page.</p>
+    <div class="access-banner card" :class="{ warning: contributionAccessMode === 'mine' }">
+      <div class="access-banner-left">
+        <strong>
+          Access mode:
+          {{ contributionAccessMode === 'all' ? 'All contributions' : 'Mine only' }}
+        </strong>
+        <p>
+          <template v-if="contributionAccessMode === 'all'">
+            The contract returned global review data for this wallet.
+          </template>
+          <template v-else>
+            The app is not currently receiving global review data from the contract.
+          </template>
+        </p>
+      </div>
+
+      <div class="access-banner-right">
+        <div class="debug-pill">
+          Loaded: <strong>{{ totalLoadedCount }}</strong>
+        </div>
+        <div class="debug-pill">
+          Mine: <strong>{{ myLoadedCount }}</strong>
+        </div>
+        <div class="debug-pill">
+          Review list: <strong>{{ reviewableCount }}</strong>
+        </div>
+      </div>
     </div>
 
-    <template v-else>
-      <div class="review-toolbar card">
-        <div class="filter-group">
+    <div class="toolbar card">
+      <div class="toolbar-left">
+        <div class="tabs">
           <button
             type="button"
-            class="filter-chip"
-            :class="{ active: activeFilter === 'pending' }"
-            @click="activeFilter = 'pending'"
+            class="tab-btn"
+            :class="{ active: activeTab === 'pending' }"
+            @click="activeTab = 'pending'"
           >
             Pending
           </button>
+
           <button
             type="button"
-            class="filter-chip"
-            :class="{ active: activeFilter === 'approved' }"
-            @click="activeFilter = 'approved'"
+            class="tab-btn"
+            :class="{ active: activeTab === 'approved' }"
+            @click="activeTab = 'approved'"
           >
             Approved
           </button>
+
           <button
             type="button"
-            class="filter-chip"
-            :class="{ active: activeFilter === 'rejected' }"
-            @click="activeFilter = 'rejected'"
+            class="tab-btn"
+            :class="{ active: activeTab === 'rejected' }"
+            @click="activeTab = 'rejected'"
           >
             Rejected
           </button>
+
           <button
             type="button"
-            class="filter-chip"
-            :class="{ active: activeFilter === 'all' }"
-            @click="activeFilter = 'all'"
+            class="tab-btn"
+            :class="{ active: activeTab === 'all' }"
+            @click="activeTab = 'all'"
           >
             All
           </button>
         </div>
 
-        <label class="search-box">
-          <span>Search</span>
-          <input
-            v-model="searchTerm"
-            type="search"
-            placeholder="Search title, student address, category..."
-          />
+        <label class="mine-toggle">
+          <input v-model="showMineInReview" type="checkbox" />
+          <span>Show my submissions</span>
         </label>
       </div>
 
-      <div v-if="store.isLoadingContributions.value" class="empty-state card">
-        <h2>Loading review queue…</h2>
-        <p>Please wait while contributions are being loaded from the contract.</p>
+      <div class="search-box">
+        <label for="review-search">Search</label>
+        <input
+          id="review-search"
+          v-model="searchQuery"
+          type="text"
+          placeholder="Search title, student address, category..."
+        />
       </div>
+    </div>
 
-      <div v-else-if="!filteredItems.length" class="empty-state card">
-        <h2>No contributions found</h2>
-        <p>There are no contributions matching the current filter.</p>
-      </div>
-
-      <div v-else class="review-list">
-        <article
-          v-for="item in filteredItems"
-          :key="item.id"
-          class="review-card card"
-        >
-          <div class="review-card-header">
-            <div>
-              <div class="title-row">
-                <h2>{{ item.title }}</h2>
-                <span class="status-badge" :class="statusClass(item.status)">
-                  {{ item.statusLabel }}
-                </span>
-              </div>
-
-              <p class="meta-row">
-                <span>{{ item.categoryLabel }}</span>
-                <span>•</span>
-                <span>Student: {{ formatAddress(item.student) }}</span>
-                <span>•</span>
-                <span>Created: {{ formatDate(item.createdAt) }}</span>
-                <span>•</span>
-                <span>Due: {{ formatDate(item.dueDate) }}</span>
-              </p>
+    <div v-if="filteredReviewContributions.length" class="review-list">
+      <article
+        v-for="item in filteredReviewContributions"
+        :key="item.id"
+        class="review-card card"
+      >
+        <div class="review-card-top">
+          <div>
+            <div class="review-card-meta">
+              <span class="category-chip">{{ item.categoryLabel }}</span>
+              <span :class="statusBadgeClass(item.status)">{{ item.statusLabel }}</span>
+              <span v-if="isMine(item)" class="self-chip">Submitted by you</span>
             </div>
+
+            <h2>{{ item.title }}</h2>
+            <p class="review-description">{{ item.description }}</p>
+          </div>
+        </div>
+
+        <div class="review-info-grid">
+          <div class="info-item">
+            <span>Student</span>
+            <strong>{{ shortenAddress(item.student) }}</strong>
           </div>
 
-          <p class="description">{{ item.description }}</p>
-
-          <div class="detail-grid">
-            <div class="detail-card">
-              <span class="detail-label">Completion</span>
-              <strong>{{ item.completed ? 'Completed' : 'Not completed' }}</strong>
-            </div>
-
-            <div class="detail-card">
-              <span class="detail-label">Points</span>
-              <strong>{{ item.pointsAwarded }}</strong>
-            </div>
-
-            <div class="detail-card">
-              <span class="detail-label">Reviewed By</span>
-              <strong>{{ item.reviewedBy && item.reviewedBy !== '0x0000000000000000000000000000000000000000' ? formatAddress(item.reviewedBy) : '—' }}</strong>
-            </div>
-
-            <div class="detail-card">
-              <span class="detail-label">Reviewed At</span>
-              <strong>{{ formatDateTime(item.reviewedAt) }}</strong>
-            </div>
+          <div class="info-item">
+            <span>Created</span>
+            <strong>{{ formatDate(item.createdAt) }}</strong>
           </div>
 
-          <div v-if="Number(item.status) === 0" class="review-actions">
-            <label class="points-input">
-              <span>Points to award</span>
-              <input
-                type="number"
-                min="0"
-                :value="getPointsValue(item.id)"
-                @input="setPointsValue(item.id, $event.target.value)"
-              />
-            </label>
-
-            <div class="action-buttons">
-              <button
-                type="button"
-                class="action-button approve"
-                @click="handleApprove(item.id)"
-              >
-                Approve
-              </button>
-
-              <button
-                type="button"
-                class="action-button reject"
-                @click="handleReject(item.id)"
-              >
-                Reject
-              </button>
-            </div>
+          <div class="info-item">
+            <span>Due Date</span>
+            <strong>{{ formatDate(item.dueDate) }}</strong>
           </div>
-        </article>
+
+          <div class="info-item">
+            <span>Completed</span>
+            <strong>{{ item.completed ? 'Yes' : 'No' }}</strong>
+          </div>
+
+          <div class="info-item" v-if="Number(item.status) !== 0">
+            <span>Reviewed By</span>
+            <strong>{{ shortenAddress(item.reviewedBy) }}</strong>
+          </div>
+
+          <div class="info-item" v-if="Number(item.status) !== 0">
+            <span>Points</span>
+            <strong>{{ item.pointsAwarded || 0 }}</strong>
+          </div>
+        </div>
+
+        <div v-if="Number(item.status) === 0" class="review-actions">
+          <div class="points-box">
+            <label :for="`points-${item.id}`">Points</label>
+            <input
+              :id="`points-${item.id}`"
+              v-model="pointsInput[item.id]"
+              type="number"
+              min="0"
+              step="1"
+              placeholder="0"
+              :disabled="isMine(item)"
+            />
+          </div>
+
+          <div class="action-buttons">
+            <button
+              type="button"
+              class="action-btn approve"
+              :disabled="approvingId === item.id || isMine(item)"
+              @click="handleApprove(item.id)"
+            >
+              {{
+                approvingId === item.id
+                  ? 'Approving...'
+                  : isMine(item)
+                    ? 'Cannot approve own'
+                    : 'Approve'
+              }}
+            </button>
+
+            <button
+              type="button"
+              class="action-btn reject"
+              :disabled="rejectingId === item.id || isMine(item)"
+              @click="handleReject(item.id)"
+            >
+              {{
+                rejectingId === item.id
+                  ? 'Rejecting...'
+                  : isMine(item)
+                    ? 'Cannot reject own'
+                    : 'Reject'
+              }}
+            </button>
+          </div>
+        </div>
+      </article>
+    </div>
+
+    <div v-else class="empty-state card">
+      <h2>{{ emptyStateTitle }}</h2>
+      <p>{{ emptyStateMessage }}</p>
+
+      <div class="empty-debug" v-if="store.canReview.value">
+        <span>Access mode: {{ contributionAccessMode }}</span>
+        <span>Total loaded: {{ totalLoadedCount }}</span>
+        <span>Mine: {{ myLoadedCount }}</span>
+        <span>Review list: {{ reviewableCount }}</span>
       </div>
-    </template>
+    </div>
   </section>
 </template>
 
 <style scoped>
 .review-page {
   display: grid;
-  gap: 18px;
+  gap: 24px;
 }
 
 .card {
   background: rgba(255, 255, 255, 0.92);
-  border: 1px solid rgba(148, 163, 184, 0.16);
-  border-radius: 24px;
-  padding: 22px;
+  border: 1px solid rgba(148, 163, 184, 0.14);
+  border-radius: 28px;
   box-shadow: 0 18px 36px rgba(15, 23, 42, 0.06);
 }
 
 .review-hero {
+  padding: 28px 26px;
   display: flex;
   justify-content: space-between;
-  gap: 18px;
-  align-items: flex-start;
+  gap: 20px;
+  align-items: center;
 }
 
-.eyebrow {
-  margin: 0 0 6px;
+.review-hero-copy {
+  max-width: 700px;
+}
+
+.section-eyebrow {
+  margin: 0 0 10px;
   text-transform: uppercase;
   letter-spacing: 0.08em;
-  font-size: 0.76rem;
+  font-size: 0.82rem;
   font-weight: 800;
-  color: #6366f1;
+  color: #4f46e5;
 }
 
 .review-hero h1 {
+  margin: 0 0 12px;
+  font-size: clamp(1.8rem, 3vw, 2.4rem);
+  line-height: 1.08;
+  color: #0f172a;
+}
+
+.review-hero p {
   margin: 0;
-  font-size: clamp(1.4rem, 2vw, 2rem);
+  color: #475569;
+  line-height: 1.65;
+  font-size: 1.02rem;
 }
 
-.subtext {
-  margin: 10px 0 0;
-  color: #64748b;
-  max-width: 680px;
-}
-
-.hero-stats {
+.review-stats {
   display: flex;
-  gap: 12px;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+.mini-stat {
+  min-width: 128px;
+  padding: 16px 18px;
+  border-radius: 20px;
+}
+
+.mini-stat span {
+  display: block;
+  margin-bottom: 8px;
+  color: #334155;
+  font-size: 0.96rem;
+}
+
+.mini-stat strong {
+  font-size: 1.9rem;
+  color: #0f172a;
+}
+
+.mini-stat.pending {
+  background: #efe4b6;
+}
+
+.mini-stat.approved {
+  background: #cfead7;
+}
+
+.mini-stat.rejected {
+  background: #efd0d0;
+}
+
+.access-banner {
+  padding: 20px 22px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 18px;
+  border-radius: 24px;
+}
+
+.access-banner.warning {
+  border-color: rgba(245, 158, 11, 0.28);
+  background: rgba(255, 251, 235, 0.95);
+}
+
+.access-banner-left strong {
+  display: block;
+  margin-bottom: 6px;
+  color: #0f172a;
+  font-size: 1rem;
+}
+
+.access-banner-left p {
+  margin: 0;
+  color: #475569;
+  line-height: 1.6;
+}
+
+.access-banner-right {
+  display: flex;
+  gap: 10px;
   flex-wrap: wrap;
   justify-content: flex-end;
 }
 
-.stat-pill {
-  min-width: 110px;
-  padding: 14px 16px;
-  border-radius: 18px;
-  display: grid;
-  gap: 4px;
+.debug-pill {
+  padding: 10px 12px;
+  border-radius: 999px;
+  background: #eef2ff;
+  color: #3730a3;
+  font-size: 0.92rem;
+  white-space: nowrap;
 }
 
-.stat-pill span {
-  font-size: 0.82rem;
-  color: #475569;
-}
-
-.stat-pill strong {
-  font-size: 1.2rem;
-}
-
-.stat-pill.pending {
-  background: #fef3c7;
-}
-
-.stat-pill.approved {
-  background: #dcfce7;
-}
-
-.stat-pill.rejected {
-  background: #fee2e2;
-}
-
-.review-toolbar {
+.toolbar {
+  padding: 22px 26px;
   display: flex;
   justify-content: space-between;
-  gap: 16px;
-  align-items: end;
-  flex-wrap: wrap;
+  gap: 20px;
+  align-items: flex-start;
 }
 
-.filter-group {
+.toolbar-left {
+  display: grid;
+  gap: 14px;
+}
+
+.tabs {
   display: flex;
   gap: 10px;
   flex-wrap: wrap;
 }
 
-.filter-chip {
+.tab-btn {
   border: 0;
   border-radius: 999px;
-  padding: 10px 14px;
+  padding: 14px 18px;
   font: inherit;
-  font-weight: 700;
-  background: #e2e8f0;
-  color: #334155;
+  font-weight: 800;
   cursor: pointer;
+  background: #cfd8e3;
+  color: #10223e;
+  transition: transform 0.18s ease, opacity 0.18s ease;
 }
 
-.filter-chip.active {
-  background: #4f46e5;
+.tab-btn:hover {
+  transform: translateY(-1px);
+}
+
+.tab-btn.active {
+  background: linear-gradient(135deg, #4f46e5, #5b4ff0);
   color: white;
+}
+
+.mine-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  color: #334155;
+  font-weight: 700;
+}
+
+.mine-toggle input {
+  width: 18px;
+  height: 18px;
 }
 
 .search-box {
   display: grid;
   gap: 8px;
-  min-width: 280px;
+  min-width: min(360px, 100%);
 }
 
-.search-box span {
-  font-size: 0.86rem;
+.search-box label {
   font-weight: 700;
-  color: #475569;
+  color: #10223e;
 }
 
 .search-box input {
-  border: 1px solid #cbd5e1;
-  border-radius: 14px;
-  padding: 12px 14px;
-  font: inherit;
+  width: 100%;
+  border: 1px solid #c7d2e0;
   background: white;
+  border-radius: 16px;
+  padding: 14px 16px;
+  font: inherit;
+  color: #10223e;
+  outline: none;
+}
+
+.search-box input:focus {
+  border-color: #7c87ff;
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.12);
 }
 
 .review-list {
   display: grid;
-  gap: 16px;
+  gap: 18px;
 }
 
 .review-card {
+  padding: 24px;
   display: grid;
-  gap: 16px;
+  gap: 18px;
 }
 
-.review-card-header {
+.review-card-meta {
   display: flex;
-  justify-content: space-between;
-  gap: 16px;
-}
-
-.title-row {
-  display: flex;
-  align-items: center;
-  gap: 12px;
+  gap: 10px;
   flex-wrap: wrap;
+  margin-bottom: 10px;
 }
 
-.title-row h2 {
-  margin: 0;
-  font-size: 1.15rem;
-}
-
-.status-badge {
-  padding: 7px 12px;
+.category-chip,
+.status-badge,
+.self-chip {
+  display: inline-flex;
+  align-items: center;
   border-radius: 999px;
-  font-size: 0.78rem;
+  padding: 8px 12px;
+  font-size: 0.86rem;
   font-weight: 800;
+}
+
+.category-chip {
+  background: #e0e7ff;
+  color: #3730a3;
 }
 
 .status-badge.pending {
@@ -475,147 +650,196 @@ function statusClass(status) {
   color: #991b1b;
 }
 
-.meta-row {
-  margin: 8px 0 0;
-  color: #64748b;
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-  font-size: 0.92rem;
+.self-chip {
+  background: #ede9fe;
+  color: #5b21b6;
 }
 
-.description {
+.review-card h2 {
   margin: 0;
-  color: #1e293b;
-  line-height: 1.7;
+  color: #0f172a;
+  font-size: 1.35rem;
 }
 
-.detail-grid {
+.review-description {
+  margin: 10px 0 0;
+  color: #475569;
+  line-height: 1.65;
+}
+
+.review-info-grid {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 12px;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 14px;
 }
 
-.detail-card {
+.info-item {
   padding: 14px 16px;
   border-radius: 18px;
   background: #f8fafc;
-  border: 1px solid rgba(148, 163, 184, 0.16);
+  border: 1px solid rgba(148, 163, 184, 0.14);
 }
 
-.detail-label {
+.info-item span {
   display: block;
   margin-bottom: 6px;
-  font-size: 0.78rem;
+  font-size: 0.82rem;
   color: #64748b;
+}
+
+.info-item strong {
+  color: #0f172a;
+  word-break: break-word;
 }
 
 .review-actions {
   display: flex;
   justify-content: space-between;
-  gap: 16px;
   align-items: end;
+  gap: 16px;
   flex-wrap: wrap;
-  padding-top: 4px;
 }
 
-.points-input {
+.points-box {
   display: grid;
   gap: 8px;
-  min-width: 220px;
+  min-width: 150px;
 }
 
-.points-input span {
-  font-size: 0.86rem;
+.points-box label {
   font-weight: 700;
-  color: #475569;
+  color: #10223e;
 }
 
-.points-input input {
-  border: 1px solid #cbd5e1;
+.points-box input {
+  border: 1px solid #c7d2e0;
   border-radius: 14px;
   padding: 12px 14px;
   font: inherit;
-  background: white;
+  outline: none;
 }
 
 .action-buttons {
   display: flex;
-  gap: 10px;
+  gap: 12px;
   flex-wrap: wrap;
 }
 
-.action-button {
+.action-btn {
   border: 0;
-  border-radius: 14px;
-  padding: 12px 16px;
+  border-radius: 16px;
+  padding: 13px 18px;
   font: inherit;
   font-weight: 800;
   cursor: pointer;
+  transition: transform 0.18s ease, opacity 0.18s ease;
 }
 
-.action-button.approve {
+.action-btn:hover {
+  transform: translateY(-1px);
+}
+
+.action-btn:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.action-btn.approve {
   background: #16a34a;
   color: white;
 }
 
-.action-button.reject {
+.action-btn.reject {
   background: #dc2626;
   color: white;
 }
 
 .empty-state {
+  padding: 42px 24px;
   text-align: center;
 }
 
 .empty-state h2 {
-  margin-top: 0;
-  margin-bottom: 8px;
+  margin: 0 0 10px;
+  font-size: 1.2rem;
+  color: #0f172a;
 }
 
 .empty-state p {
   margin: 0;
   color: #64748b;
+  line-height: 1.65;
 }
 
-@media (max-width: 960px) {
-  .review-hero {
+.empty-debug {
+  margin-top: 18px;
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.empty-debug span {
+  background: #f1f5f9;
+  color: #334155;
+  padding: 8px 12px;
+  border-radius: 999px;
+  font-size: 0.88rem;
+}
+
+@media (max-width: 1180px) {
+  .review-info-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 900px) {
+  .review-hero,
+  .toolbar,
+  .access-banner {
     flex-direction: column;
+    align-items: stretch;
   }
 
-  .hero-stats {
+  .review-stats,
+  .access-banner-right {
     justify-content: flex-start;
   }
 
-  .detail-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+  .search-box {
+    min-width: 100%;
   }
 }
 
-@media (max-width: 640px) {
+@media (max-width: 720px) {
+  .review-info-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   .card {
-    padding: 18px;
-    border-radius: 20px;
+    border-radius: 22px;
   }
 
-  .detail-grid {
+  .review-hero,
+  .toolbar,
+  .review-card,
+  .access-banner {
+    padding: 20px;
+  }
+}
+
+@media (max-width: 520px) {
+  .review-info-grid {
     grid-template-columns: 1fr;
-  }
-
-  .review-actions {
-    align-items: stretch;
   }
 
   .action-buttons {
     width: 100%;
   }
 
-  .action-button {
-    flex: 1;
-  }
-
-  .search-box {
-    min-width: 100%;
+  .action-btn {
+    flex: 1 1 0;
   }
 }
 </style>

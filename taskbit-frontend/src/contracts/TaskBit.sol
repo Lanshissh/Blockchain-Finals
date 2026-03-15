@@ -91,7 +91,7 @@ contract TaskBit is ERC721, Ownable {
     );
 
     modifier onlyAdminOrOwner() {
-        require(owner() == msg.sender || admins[msg.sender], "NO_ADMIN");
+        require(_isAdminOrOwner(msg.sender), "NO_ADMIN");
         _;
     }
 
@@ -272,10 +272,23 @@ contract TaskBit is ERC721, Ownable {
 
     function getMyContributions() external view returns (Contribution[] memory) {
         uint256[] memory ids = userContributionIds[msg.sender];
-        Contribution[] memory result = new Contribution[](ids.length);
+        uint256 activeCount = 0;
 
         for (uint256 i = 0; i < ids.length; i++) {
-            result[i] = contributions[ids[i]];
+            if (!contributions[ids[i]].deleted) {
+                activeCount++;
+            }
+        }
+
+        Contribution[] memory result = new Contribution[](activeCount);
+        uint256 index = 0;
+
+        for (uint256 i = 0; i < ids.length; i++) {
+            Contribution memory contribution = contributions[ids[i]];
+            if (!contribution.deleted) {
+                result[index] = contribution;
+                index++;
+            }
         }
 
         return result;
@@ -287,10 +300,29 @@ contract TaskBit is ERC721, Ownable {
         onlyReviewer
         returns (Contribution[] memory)
     {
-        Contribution[] memory result = new Contribution[](nextContributionId);
+        uint256 activeCount = 0;
 
         for (uint256 i = 0; i < nextContributionId; i++) {
-            result[i] = contributions[i];
+            if (
+                contributions[i].student != address(0) &&
+                !contributions[i].deleted
+            ) {
+                activeCount++;
+            }
+        }
+
+        Contribution[] memory result = new Contribution[](activeCount);
+        uint256 index = 0;
+
+        for (uint256 i = 0; i < nextContributionId; i++) {
+            Contribution memory contribution = contributions[i];
+            if (
+                contribution.student != address(0) &&
+                !contribution.deleted
+            ) {
+                result[index] = contribution;
+                index++;
+            }
         }
 
         return result;
@@ -302,6 +334,10 @@ contract TaskBit is ERC721, Ownable {
 
     function isReviewer(address account) external view returns (bool) {
         return _isReviewer(account);
+    }
+
+    function _isAdminOrOwner(address account) internal view returns (bool) {
+        return owner() == account || admins[account];
     }
 
     function _isReviewer(address account) internal view returns (bool) {

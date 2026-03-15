@@ -12,7 +12,7 @@ import {
   CONTRACT_BRAND,
   getTaskBitContract,
   fetchMyContributions,
-  fetchAllContributions,
+  fetchBestAvailableContributions,
   fetchPendingContributions,
   fetchMyContributionCount,
   fetchMyReputation,
@@ -26,7 +26,8 @@ import {
   setProfessorRole,
   setAdminRole,
   getReadableBlockchainError,
-  formatTxSummary
+  formatTxSummary,
+  isUnauthorizedReadError
 } from '../services/taskbit'
 import {
   CONTRIBUTION_CATEGORIES,
@@ -46,6 +47,7 @@ export function useAuctusStore() {
   const txStatus = ref('No transaction yet')
   const latestTxHash = ref('')
   const latestTxUrl = ref('')
+  const contributionAccessMode = ref('mine')
 
   const contributionForm = ref({
     title: '',
@@ -130,6 +132,12 @@ export function useAuctusStore() {
     visibleContributions.value.filter((item) => item.completed)
   )
 
+  const canReview = computed(
+    () => isReviewer.value || isProfessor.value || isAdmin.value || isOwner.value
+  )
+
+  const canViewAllContributions = computed(() => contributionAccessMode.value === 'all')
+
   const userRole = computed(() => {
     if (!isConnected.value) return 'guest'
     if (isOwner.value || isAdmin.value) return 'admin'
@@ -198,6 +206,7 @@ export function useAuctusStore() {
     contributions.value = []
     contributionCount.value = 0
     reputation.value = 0
+    contributionAccessMode.value = 'mine'
     resetRoles()
     walletStatus.value = message
     contractStatus.value = `${CONTRACT_BRAND} contract not connected`
@@ -228,6 +237,7 @@ export function useAuctusStore() {
         contributions.value = []
         contributionCount.value = 0
         reputation.value = 0
+        contributionAccessMode.value = 'mine'
         resetRoles()
         walletStatus.value = `Wrong network. Please switch MetaMask to ${APP_NETWORK.name}.`
         contractStatus.value = `${CONTRACT_BRAND} contract unavailable on current network`
@@ -298,6 +308,7 @@ export function useAuctusStore() {
       contributions.value = []
       contributionCount.value = 0
       reputation.value = 0
+      contributionAccessMode.value = 'mine'
       resetRoles()
       return
     }
@@ -307,44 +318,45 @@ export function useAuctusStore() {
     try {
       await loadRoleState()
 
-      const canReview = isReviewer.value || isProfessor.value || isAdmin.value || isOwner.value
-
-      const contributionPromise = canReview
-        ? fetchAllContributions(contract)
-        : fetchMyContributions(contract)
-
-      const [contributionList, reputationValue] = await Promise.all([
-        contributionPromise,
+      const [contributionResult, reputationValue] = await Promise.all([
+        fetchBestAvailableContributions(contract, { preferAll: canReview.value }),
         fetchMyReputation(contract)
       ])
 
-      contributions.value = contributionList
+      contributions.value = contributionResult.contributions
       reputation.value = Number(reputationValue || 0)
+      contributionAccessMode.value = contributionResult.source
 
-      if (canReview) {
+      if (contributionResult.source === 'all') {
         contributionCount.value = myContributions.value.length
       } else {
         contributionCount.value = await fetchMyContributionCount(contract)
+      }
+
+      if (contributionResult.usedFallback) {
+        txStatus.value =
+          'This wallet can access the app, but the deployed contract rejected getAllContributions(). Showing only your contributions for now.'
       }
     } catch (error) {
       console.error('Failed to load contributions:', error)
       contributions.value = []
       contributionCount.value = 0
       reputation.value = 0
-      txStatus.value = 'Failed to load contributions.'
+      contributionAccessMode.value = 'mine'
+
+      if (isUnauthorizedReadError(error)) {
+        txStatus.value =
+          'The deployed contract rejected this contribution read. Check TaskBit.sol access rules for getAllContributions().'
+      } else {
+        txStatus.value = 'Failed to load contributions.'
+      }
     } finally {
       isLoadingContributions.value = false
     }
   }
 
   async function refreshPendingReviewList() {
-    if (!contract) {
-      return
-    }
-
-    const canReview = isReviewer.value || isProfessor.value || isAdmin.value || isOwner.value
-
-    if (!canReview) {
+    if (!contract || !canReview.value || !canViewAllContributions.value) {
       return
     }
 
@@ -727,10 +739,13 @@ export function useAuctusStore() {
     completedContributions,
     contributionCount,
     reputation,
+    contributionAccessMode,
+    canViewAllContributions,
     isReviewer,
     isProfessor,
     isAdmin,
     isOwner,
+    canReview,
     userRole,
     roleLabel,
     categoryOptions,
