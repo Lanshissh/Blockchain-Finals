@@ -1,8 +1,19 @@
 export const TASKBIT_ADDRESS = (import.meta.env.VITE_TASKBIT_ADDRESS || '').trim()
 
-export const CONTRIBUTION_CATEGORIES = ['Paper', 'Seminar', 'Research', 'Competition', 'Extension', 'Other']
+export const CONTRIBUTION_CATEGORIES = [
+  'Paper',
+  'Seminar',
+  'Research',
+  'Competition',
+  'Extension',
+  'Other'
+]
 
-export const CONTRIBUTION_STATUSES = ['Pending', 'Approved', 'Rejected']
+export const CONTRIBUTION_STATUSES = [
+  'Pending',
+  'Approved',
+  'Rejected'
+]
 
 export const TASKBIT_ABI = [
   {
@@ -11,10 +22,145 @@ export const TASKBIT_ABI = [
     type: 'constructor'
   },
   {
+    inputs: [
+      {
+        internalType: 'address',
+        name: 'sender',
+        type: 'address'
+      },
+      {
+        internalType: 'uint256',
+        name: 'tokenId',
+        type: 'uint256'
+      },
+      {
+        internalType: 'address',
+        name: 'owner',
+        type: 'address'
+      }
+    ],
+    name: 'ERC721IncorrectOwner',
+    type: 'error'
+  },
+  {
+    inputs: [
+      {
+        internalType: 'address',
+        name: 'operator',
+        type: 'address'
+      },
+      {
+        internalType: 'uint256',
+        name: 'tokenId',
+        type: 'uint256'
+      }
+    ],
+    name: 'ERC721InsufficientApproval',
+    type: 'error'
+  },
+  {
+    inputs: [
+      {
+        internalType: 'address',
+        name: 'approver',
+        type: 'address'
+      }
+    ],
+    name: 'ERC721InvalidApprover',
+    type: 'error'
+  },
+  {
+    inputs: [
+      {
+        internalType: 'address',
+        name: 'operator',
+        type: 'address'
+      }
+    ],
+    name: 'ERC721InvalidOperator',
+    type: 'error'
+  },
+  {
+    inputs: [
+      {
+        internalType: 'address',
+        name: 'owner',
+        type: 'address'
+      }
+    ],
+    name: 'ERC721InvalidOwner',
+    type: 'error'
+  },
+  {
+    inputs: [
+      {
+        internalType: 'address',
+        name: 'receiver',
+        type: 'address'
+      }
+    ],
+    name: 'ERC721InvalidReceiver',
+    type: 'error'
+  },
+  {
+    inputs: [
+      {
+        internalType: 'address',
+        name: 'sender',
+        type: 'address'
+      }
+    ],
+    name: 'ERC721InvalidSender',
+    type: 'error'
+  },
+  {
+    inputs: [
+      {
+        internalType: 'uint256',
+        name: 'tokenId',
+        type: 'uint256'
+      }
+    ],
+    name: 'ERC721NonexistentToken',
+    type: 'error'
+  },
+  {
+    inputs: [
+      {
+        internalType: 'address',
+        name: 'owner',
+        type: 'address'
+      }
+    ],
+    name: 'OwnableInvalidOwner',
+    type: 'error'
+  },
+  {
+    inputs: [
+      {
+        internalType: 'address',
+        name: 'account',
+        type: 'address'
+      }
+    ],
+    name: 'OwnableUnauthorizedAccount',
+    type: 'error'
+  },
+  {
     anonymous: false,
     inputs: [
-      { indexed: true, internalType: 'address', name: 'account', type: 'address' },
-      { indexed: false, internalType: 'bool', name: 'isActive', type: 'bool' }
+      {
+        indexed: true,
+        internalType: 'address',
+        name: 'account',
+        type: 'address'
+      },
+      {
+        indexed: false,
+        internalType: 'bool',
+        name: 'isActive',
+        type: 'bool'
+      }
     ],
     name: 'AdminUpdated',
     type: 'event'
@@ -22,10 +168,80 @@ export const TASKBIT_ABI = [
   {
     anonymous: false,
     inputs: [
-      { indexed: true, internalType: 'uint256', name: 'contributionId', type: 'uint256' },
-      { indexed: true, internalType: 'address', name: 'student', type: 'address' },
-      { indexed: true, internalType: 'address', name: 'reviewer', type: 'address' },
-      { indexed: false, internalType: 'uint256', name: 'pointsAwarded', type: 'uint256' }
+      {
+        indexed: true,
+        internalType: 'address',
+        name: 'owner',
+        type: 'address'
+      },
+      {
+        indexed: true,
+        internalType: 'address',
+        name: 'approved',
+        type: 'address'
+      },
+      {
+        indexed: true,
+        internalType: 'uint256',
+        name: 'tokenId',
+        type: 'uint256'
+      }
+    ],
+    name: 'Approval',
+    type: 'event'
+  },
+  {
+    anonymous: false,
+    inputs: [
+      {
+        indexed: true,
+        internalType: 'address',
+        name: 'owner',
+        type: 'address'
+      },
+      {
+        indexed: true,
+        internalType: 'address',
+        name: 'operator',
+        type: 'address'
+      },
+      {
+        indexed: false,
+        internalType: 'bool',
+        name: 'approved',
+        type: 'bool'
+      }
+    ],
+    name: 'ApprovalForAll',
+    type: 'event'
+  },
+  {
+    anonymous: false,
+    inputs: [
+      {
+        indexed: true,
+        internalType: 'uint256',
+        name: 'contributionId',
+        type: 'uint256'
+      },
+      {
+        indexed: true,
+        internalType: 'address',
+        name: 'student',
+        type: 'address'
+      },
+      {
+        indexed: true,
+        internalType: 'address',
+        name: 'reviewer',
+        type: 'address'
+      },
+      {
+        indexed: false,
+        internalType: 'uint256',
+        name: 'pointsAwarded',
+        type: 'uint256'
+      }
     ],
     name: 'ContributionApproved',
     type: 'event'
@@ -33,13 +249,48 @@ export const TASKBIT_ABI = [
   {
     anonymous: false,
     inputs: [
-      { indexed: true, internalType: 'uint256', name: 'contributionId', type: 'uint256' },
-      { indexed: true, internalType: 'address', name: 'student', type: 'address' },
-      { indexed: false, internalType: 'string', name: 'title', type: 'string' },
-      { indexed: false, internalType: 'uint8', name: 'category', type: 'uint8' },
-      { indexed: false, internalType: 'string', name: 'description', type: 'string' },
-      { indexed: false, internalType: 'uint256', name: 'createdAt', type: 'uint256' },
-      { indexed: false, internalType: 'uint256', name: 'dueDate', type: 'uint256' }
+      {
+        indexed: true,
+        internalType: 'uint256',
+        name: 'contributionId',
+        type: 'uint256'
+      },
+      {
+        indexed: true,
+        internalType: 'address',
+        name: 'student',
+        type: 'address'
+      },
+      {
+        indexed: false,
+        internalType: 'string',
+        name: 'title',
+        type: 'string'
+      },
+      {
+        indexed: false,
+        internalType: 'enum TaskBit.ContributionCategory',
+        name: 'category',
+        type: 'uint8'
+      },
+      {
+        indexed: false,
+        internalType: 'string',
+        name: 'description',
+        type: 'string'
+      },
+      {
+        indexed: false,
+        internalType: 'uint256',
+        name: 'createdAt',
+        type: 'uint256'
+      },
+      {
+        indexed: false,
+        internalType: 'uint256',
+        name: 'dueDate',
+        type: 'uint256'
+      }
     ],
     name: 'ContributionCreated',
     type: 'event'
@@ -47,19 +298,182 @@ export const TASKBIT_ABI = [
   {
     anonymous: false,
     inputs: [
-      { indexed: true, internalType: 'address', name: 'student', type: 'address' },
-      { indexed: true, internalType: 'uint256', name: 'contributionId', type: 'uint256' },
-      { indexed: true, internalType: 'uint256', name: 'tokenId', type: 'uint256' }
+      {
+        indexed: true,
+        internalType: 'uint256',
+        name: 'contributionId',
+        type: 'uint256'
+      },
+      {
+        indexed: true,
+        internalType: 'address',
+        name: 'student',
+        type: 'address'
+      }
+    ],
+    name: 'ContributionDeleted',
+    type: 'event'
+  },
+  {
+    anonymous: false,
+    inputs: [
+      {
+        indexed: true,
+        internalType: 'address',
+        name: 'student',
+        type: 'address'
+      },
+      {
+        indexed: true,
+        internalType: 'uint256',
+        name: 'contributionId',
+        type: 'uint256'
+      },
+      {
+        indexed: true,
+        internalType: 'uint256',
+        name: 'tokenId',
+        type: 'uint256'
+      }
     ],
     name: 'ContributionNFTMinted',
     type: 'event'
   },
   {
+    anonymous: false,
     inputs: [
-      { internalType: 'string', name: 'title', type: 'string' },
-      { internalType: 'uint8', name: 'category', type: 'uint8' },
-      { internalType: 'string', name: 'description', type: 'string' },
-      { internalType: 'uint256', name: 'dueDate', type: 'uint256' }
+      {
+        indexed: true,
+        internalType: 'uint256',
+        name: 'contributionId',
+        type: 'uint256'
+      },
+      {
+        indexed: true,
+        internalType: 'address',
+        name: 'student',
+        type: 'address'
+      },
+      {
+        indexed: true,
+        internalType: 'address',
+        name: 'reviewer',
+        type: 'address'
+      }
+    ],
+    name: 'ContributionRejected',
+    type: 'event'
+  },
+  {
+    anonymous: false,
+    inputs: [
+      {
+        indexed: true,
+        internalType: 'uint256',
+        name: 'contributionId',
+        type: 'uint256'
+      },
+      {
+        indexed: true,
+        internalType: 'address',
+        name: 'student',
+        type: 'address'
+      },
+      {
+        indexed: false,
+        internalType: 'bool',
+        name: 'completed',
+        type: 'bool'
+      }
+    ],
+    name: 'ContributionUpdated',
+    type: 'event'
+  },
+  {
+    anonymous: false,
+    inputs: [
+      {
+        indexed: true,
+        internalType: 'address',
+        name: 'previousOwner',
+        type: 'address'
+      },
+      {
+        indexed: true,
+        internalType: 'address',
+        name: 'newOwner',
+        type: 'address'
+      }
+    ],
+    name: 'OwnershipTransferred',
+    type: 'event'
+  },
+  {
+    anonymous: false,
+    inputs: [
+      {
+        indexed: true,
+        internalType: 'address',
+        name: 'account',
+        type: 'address'
+      },
+      {
+        indexed: false,
+        internalType: 'bool',
+        name: 'isActive',
+        type: 'bool'
+      }
+    ],
+    name: 'ProfessorUpdated',
+    type: 'event'
+  },
+  {
+    anonymous: false,
+    inputs: [
+      {
+        indexed: true,
+        internalType: 'address',
+        name: 'from',
+        type: 'address'
+      },
+      {
+        indexed: true,
+        internalType: 'address',
+        name: 'to',
+        type: 'address'
+      },
+      {
+        indexed: true,
+        internalType: 'uint256',
+        name: 'tokenId',
+        type: 'uint256'
+      }
+    ],
+    name: 'Transfer',
+    type: 'event'
+  },
+  {
+    inputs: [
+      {
+        internalType: 'string',
+        name: 'title',
+        type: 'string'
+      },
+      {
+        internalType: 'enum TaskBit.ContributionCategory',
+        name: 'category',
+        type: 'uint8'
+      },
+      {
+        internalType: 'string',
+        name: 'description',
+        type: 'string'
+      },
+      {
+        internalType: 'uint256',
+        name: 'dueDate',
+        type: 'uint256'
+      }
     ],
     name: 'addContribution',
     outputs: [],
@@ -68,8 +482,53 @@ export const TASKBIT_ABI = [
   },
   {
     inputs: [
-      { internalType: 'uint256', name: 'contributionId', type: 'uint256' },
-      { internalType: 'uint256', name: 'points', type: 'uint256' }
+      {
+        internalType: 'address',
+        name: '',
+        type: 'address'
+      }
+    ],
+    name: 'admins',
+    outputs: [
+      {
+        internalType: 'bool',
+        name: '',
+        type: 'bool'
+      }
+    ],
+    stateMutability: 'view',
+    type: 'function'
+  },
+  {
+    inputs: [
+      {
+        internalType: 'address',
+        name: 'to',
+        type: 'address'
+      },
+      {
+        internalType: 'uint256',
+        name: 'tokenId',
+        type: 'uint256'
+      }
+    ],
+    name: 'approve',
+    outputs: [],
+    stateMutability: 'nonpayable',
+    type: 'function'
+  },
+  {
+    inputs: [
+      {
+        internalType: 'uint256',
+        name: 'contributionId',
+        type: 'uint256'
+      },
+      {
+        internalType: 'uint256',
+        name: 'points',
+        type: 'uint256'
+      }
     ],
     name: 'approveContribution',
     outputs: [],
@@ -77,21 +536,32 @@ export const TASKBIT_ABI = [
     type: 'function'
   },
   {
-    inputs: [{ internalType: 'address', name: '', type: 'address' }],
-    name: 'admins',
-    outputs: [{ internalType: 'bool', name: '', type: 'bool' }],
+    inputs: [
+      {
+        internalType: 'address',
+        name: 'owner',
+        type: 'address'
+      }
+    ],
+    name: 'balanceOf',
+    outputs: [
+      {
+        internalType: 'uint256',
+        name: '',
+        type: 'uint256'
+      }
+    ],
     stateMutability: 'view',
     type: 'function'
   },
   {
-    inputs: [{ internalType: 'uint256', name: '', type: 'uint256' }],
-    name: 'contributionToTokenId',
-    outputs: [{ internalType: 'uint256', name: '', type: 'uint256' }],
-    stateMutability: 'view',
-    type: 'function'
-  },
-  {
-    inputs: [{ internalType: 'uint256', name: 'contributionId', type: 'uint256' }],
+    inputs: [
+      {
+        internalType: 'uint256',
+        name: 'contributionId',
+        type: 'uint256'
+      }
+    ],
     name: 'deleteContribution',
     outputs: [],
     stateMutability: 'nonpayable',
@@ -103,20 +573,76 @@ export const TASKBIT_ABI = [
     outputs: [
       {
         components: [
-          { internalType: 'uint256', name: 'id', type: 'uint256' },
-          { internalType: 'address', name: 'student', type: 'address' },
-          { internalType: 'string', name: 'title', type: 'string' },
-          { internalType: 'uint8', name: 'category', type: 'uint8' },
-          { internalType: 'string', name: 'description', type: 'string' },
-          { internalType: 'bool', name: 'completed', type: 'bool' },
-          { internalType: 'uint256', name: 'createdAt', type: 'uint256' },
-          { internalType: 'uint256', name: 'dueDate', type: 'uint256' },
-          { internalType: 'bool', name: 'deleted', type: 'bool' },
-          { internalType: 'bool', name: 'nftMinted', type: 'bool' },
-          { internalType: 'uint8', name: 'status', type: 'uint8' },
-          { internalType: 'uint256', name: 'pointsAwarded', type: 'uint256' },
-          { internalType: 'address', name: 'reviewedBy', type: 'address' },
-          { internalType: 'uint256', name: 'reviewedAt', type: 'uint256' }
+          {
+            internalType: 'uint256',
+            name: 'id',
+            type: 'uint256'
+          },
+          {
+            internalType: 'address',
+            name: 'student',
+            type: 'address'
+          },
+          {
+            internalType: 'string',
+            name: 'title',
+            type: 'string'
+          },
+          {
+            internalType: 'enum TaskBit.ContributionCategory',
+            name: 'category',
+            type: 'uint8'
+          },
+          {
+            internalType: 'string',
+            name: 'description',
+            type: 'string'
+          },
+          {
+            internalType: 'bool',
+            name: 'completed',
+            type: 'bool'
+          },
+          {
+            internalType: 'uint256',
+            name: 'createdAt',
+            type: 'uint256'
+          },
+          {
+            internalType: 'uint256',
+            name: 'dueDate',
+            type: 'uint256'
+          },
+          {
+            internalType: 'bool',
+            name: 'deleted',
+            type: 'bool'
+          },
+          {
+            internalType: 'bool',
+            name: 'nftMinted',
+            type: 'bool'
+          },
+          {
+            internalType: 'enum TaskBit.ContributionStatus',
+            name: 'status',
+            type: 'uint8'
+          },
+          {
+            internalType: 'uint256',
+            name: 'pointsAwarded',
+            type: 'uint256'
+          },
+          {
+            internalType: 'address',
+            name: 'reviewedBy',
+            type: 'address'
+          },
+          {
+            internalType: 'uint256',
+            name: 'reviewedAt',
+            type: 'uint256'
+          }
         ],
         internalType: 'struct TaskBit.Contribution[]',
         name: '',
@@ -127,25 +653,106 @@ export const TASKBIT_ABI = [
     type: 'function'
   },
   {
-    inputs: [{ internalType: 'uint256', name: 'contributionId', type: 'uint256' }],
+    inputs: [
+      {
+        internalType: 'uint256',
+        name: 'tokenId',
+        type: 'uint256'
+      }
+    ],
+    name: 'getApproved',
+    outputs: [
+      {
+        internalType: 'address',
+        name: '',
+        type: 'address'
+      }
+    ],
+    stateMutability: 'view',
+    type: 'function'
+  },
+  {
+    inputs: [
+      {
+        internalType: 'uint256',
+        name: 'contributionId',
+        type: 'uint256'
+      }
+    ],
     name: 'getContribution',
     outputs: [
       {
         components: [
-          { internalType: 'uint256', name: 'id', type: 'uint256' },
-          { internalType: 'address', name: 'student', type: 'address' },
-          { internalType: 'string', name: 'title', type: 'string' },
-          { internalType: 'uint8', name: 'category', type: 'uint8' },
-          { internalType: 'string', name: 'description', type: 'string' },
-          { internalType: 'bool', name: 'completed', type: 'bool' },
-          { internalType: 'uint256', name: 'createdAt', type: 'uint256' },
-          { internalType: 'uint256', name: 'dueDate', type: 'uint256' },
-          { internalType: 'bool', name: 'deleted', type: 'bool' },
-          { internalType: 'bool', name: 'nftMinted', type: 'bool' },
-          { internalType: 'uint8', name: 'status', type: 'uint8' },
-          { internalType: 'uint256', name: 'pointsAwarded', type: 'uint256' },
-          { internalType: 'address', name: 'reviewedBy', type: 'address' },
-          { internalType: 'uint256', name: 'reviewedAt', type: 'uint256' }
+          {
+            internalType: 'uint256',
+            name: 'id',
+            type: 'uint256'
+          },
+          {
+            internalType: 'address',
+            name: 'student',
+            type: 'address'
+          },
+          {
+            internalType: 'string',
+            name: 'title',
+            type: 'string'
+          },
+          {
+            internalType: 'enum TaskBit.ContributionCategory',
+            name: 'category',
+            type: 'uint8'
+          },
+          {
+            internalType: 'string',
+            name: 'description',
+            type: 'string'
+          },
+          {
+            internalType: 'bool',
+            name: 'completed',
+            type: 'bool'
+          },
+          {
+            internalType: 'uint256',
+            name: 'createdAt',
+            type: 'uint256'
+          },
+          {
+            internalType: 'uint256',
+            name: 'dueDate',
+            type: 'uint256'
+          },
+          {
+            internalType: 'bool',
+            name: 'deleted',
+            type: 'bool'
+          },
+          {
+            internalType: 'bool',
+            name: 'nftMinted',
+            type: 'bool'
+          },
+          {
+            internalType: 'enum TaskBit.ContributionStatus',
+            name: 'status',
+            type: 'uint8'
+          },
+          {
+            internalType: 'uint256',
+            name: 'pointsAwarded',
+            type: 'uint256'
+          },
+          {
+            internalType: 'address',
+            name: 'reviewedBy',
+            type: 'address'
+          },
+          {
+            internalType: 'uint256',
+            name: 'reviewedAt',
+            type: 'uint256'
+          }
         ],
         internalType: 'struct TaskBit.Contribution',
         name: '',
@@ -157,31 +764,80 @@ export const TASKBIT_ABI = [
   },
   {
     inputs: [],
-    name: 'getMyCertificateTokenIds',
-    outputs: [{ internalType: 'uint256[]', name: '', type: 'uint256[]' }],
-    stateMutability: 'view',
-    type: 'function'
-  },
-  {
-    inputs: [],
     name: 'getMyContributions',
     outputs: [
       {
         components: [
-          { internalType: 'uint256', name: 'id', type: 'uint256' },
-          { internalType: 'address', name: 'student', type: 'address' },
-          { internalType: 'string', name: 'title', type: 'string' },
-          { internalType: 'uint8', name: 'category', type: 'uint8' },
-          { internalType: 'string', name: 'description', type: 'string' },
-          { internalType: 'bool', name: 'completed', type: 'bool' },
-          { internalType: 'uint256', name: 'createdAt', type: 'uint256' },
-          { internalType: 'uint256', name: 'dueDate', type: 'uint256' },
-          { internalType: 'bool', name: 'deleted', type: 'bool' },
-          { internalType: 'bool', name: 'nftMinted', type: 'bool' },
-          { internalType: 'uint8', name: 'status', type: 'uint8' },
-          { internalType: 'uint256', name: 'pointsAwarded', type: 'uint256' },
-          { internalType: 'address', name: 'reviewedBy', type: 'address' },
-          { internalType: 'uint256', name: 'reviewedAt', type: 'uint256' }
+          {
+            internalType: 'uint256',
+            name: 'id',
+            type: 'uint256'
+          },
+          {
+            internalType: 'address',
+            name: 'student',
+            type: 'address'
+          },
+          {
+            internalType: 'string',
+            name: 'title',
+            type: 'string'
+          },
+          {
+            internalType: 'enum TaskBit.ContributionCategory',
+            name: 'category',
+            type: 'uint8'
+          },
+          {
+            internalType: 'string',
+            name: 'description',
+            type: 'string'
+          },
+          {
+            internalType: 'bool',
+            name: 'completed',
+            type: 'bool'
+          },
+          {
+            internalType: 'uint256',
+            name: 'createdAt',
+            type: 'uint256'
+          },
+          {
+            internalType: 'uint256',
+            name: 'dueDate',
+            type: 'uint256'
+          },
+          {
+            internalType: 'bool',
+            name: 'deleted',
+            type: 'bool'
+          },
+          {
+            internalType: 'bool',
+            name: 'nftMinted',
+            type: 'bool'
+          },
+          {
+            internalType: 'enum TaskBit.ContributionStatus',
+            name: 'status',
+            type: 'uint8'
+          },
+          {
+            internalType: 'uint256',
+            name: 'pointsAwarded',
+            type: 'uint256'
+          },
+          {
+            internalType: 'address',
+            name: 'reviewedBy',
+            type: 'address'
+          },
+          {
+            internalType: 'uint256',
+            name: 'reviewedAt',
+            type: 'uint256'
+          }
         ],
         internalType: 'struct TaskBit.Contribution[]',
         name: '',
@@ -194,19 +850,67 @@ export const TASKBIT_ABI = [
   {
     inputs: [],
     name: 'getMyReputation',
-    outputs: [{ internalType: 'uint256', name: '', type: 'uint256' }],
+    outputs: [
+      {
+        internalType: 'uint256',
+        name: '',
+        type: 'uint256'
+      }
+    ],
     stateMutability: 'view',
     type: 'function'
   },
   {
-    inputs: [{ internalType: 'address', name: 'account', type: 'address' }],
+    inputs: [
+      {
+        internalType: 'address',
+        name: 'owner',
+        type: 'address'
+      },
+      {
+        internalType: 'address',
+        name: 'operator',
+        type: 'address'
+      }
+    ],
+    name: 'isApprovedForAll',
+    outputs: [
+      {
+        internalType: 'bool',
+        name: '',
+        type: 'bool'
+      }
+    ],
+    stateMutability: 'view',
+    type: 'function'
+  },
+  {
+    inputs: [
+      {
+        internalType: 'address',
+        name: 'account',
+        type: 'address'
+      }
+    ],
     name: 'isReviewer',
-    outputs: [{ internalType: 'bool', name: '', type: 'bool' }],
+    outputs: [
+      {
+        internalType: 'bool',
+        name: '',
+        type: 'bool'
+      }
+    ],
     stateMutability: 'view',
     type: 'function'
   },
   {
-    inputs: [{ internalType: 'uint256', name: 'contributionId', type: 'uint256' }],
+    inputs: [
+      {
+        internalType: 'uint256',
+        name: 'contributionId',
+        type: 'uint256'
+      }
+    ],
     name: 'mintContributionNFT',
     outputs: [],
     stateMutability: 'nonpayable',
@@ -214,36 +918,196 @@ export const TASKBIT_ABI = [
   },
   {
     inputs: [],
+    name: 'name',
+    outputs: [
+      {
+        internalType: 'string',
+        name: '',
+        type: 'string'
+      }
+    ],
+    stateMutability: 'view',
+    type: 'function'
+  },
+  {
+    inputs: [],
+    name: 'nextContributionId',
+    outputs: [
+      {
+        internalType: 'uint256',
+        name: '',
+        type: 'uint256'
+      }
+    ],
+    stateMutability: 'view',
+    type: 'function'
+  },
+  {
+    inputs: [],
+    name: 'nextTokenId',
+    outputs: [
+      {
+        internalType: 'uint256',
+        name: '',
+        type: 'uint256'
+      }
+    ],
+    stateMutability: 'view',
+    type: 'function'
+  },
+  {
+    inputs: [],
     name: 'owner',
-    outputs: [{ internalType: 'address', name: '', type: 'address' }],
+    outputs: [
+      {
+        internalType: 'address',
+        name: '',
+        type: 'address'
+      }
+    ],
     stateMutability: 'view',
     type: 'function'
   },
   {
-    inputs: [{ internalType: 'address', name: '', type: 'address' }],
+    inputs: [
+      {
+        internalType: 'uint256',
+        name: 'tokenId',
+        type: 'uint256'
+      }
+    ],
+    name: 'ownerOf',
+    outputs: [
+      {
+        internalType: 'address',
+        name: '',
+        type: 'address'
+      }
+    ],
+    stateMutability: 'view',
+    type: 'function'
+  },
+  {
+    inputs: [
+      {
+        internalType: 'address',
+        name: '',
+        type: 'address'
+      }
+    ],
     name: 'professors',
-    outputs: [{ internalType: 'bool', name: '', type: 'bool' }],
+    outputs: [
+      {
+        internalType: 'bool',
+        name: '',
+        type: 'bool'
+      }
+    ],
     stateMutability: 'view',
     type: 'function'
   },
   {
-    inputs: [{ internalType: 'address', name: '', type: 'address' }],
-    name: 'reputation',
-    outputs: [{ internalType: 'uint256', name: '', type: 'uint256' }],
-    stateMutability: 'view',
-    type: 'function'
-  },
-  {
-    inputs: [{ internalType: 'uint256', name: 'contributionId', type: 'uint256' }],
+    inputs: [
+      {
+        internalType: 'uint256',
+        name: 'contributionId',
+        type: 'uint256'
+      }
+    ],
     name: 'rejectContribution',
     outputs: [],
     stateMutability: 'nonpayable',
     type: 'function'
   },
   {
+    inputs: [],
+    name: 'renounceOwnership',
+    outputs: [],
+    stateMutability: 'nonpayable',
+    type: 'function'
+  },
+  {
     inputs: [
-      { internalType: 'address', name: 'account', type: 'address' },
-      { internalType: 'bool', name: 'isActive', type: 'bool' }
+      {
+        internalType: 'address',
+        name: '',
+        type: 'address'
+      }
+    ],
+    name: 'reputation',
+    outputs: [
+      {
+        internalType: 'uint256',
+        name: '',
+        type: 'uint256'
+      }
+    ],
+    stateMutability: 'view',
+    type: 'function'
+  },
+  {
+    inputs: [
+      {
+        internalType: 'address',
+        name: 'from',
+        type: 'address'
+      },
+      {
+        internalType: 'address',
+        name: 'to',
+        type: 'address'
+      },
+      {
+        internalType: 'uint256',
+        name: 'tokenId',
+        type: 'uint256'
+      }
+    ],
+    name: 'safeTransferFrom',
+    outputs: [],
+    stateMutability: 'nonpayable',
+    type: 'function'
+  },
+  {
+    inputs: [
+      {
+        internalType: 'address',
+        name: 'from',
+        type: 'address'
+      },
+      {
+        internalType: 'address',
+        name: 'to',
+        type: 'address'
+      },
+      {
+        internalType: 'uint256',
+        name: 'tokenId',
+        type: 'uint256'
+      },
+      {
+        internalType: 'bytes',
+        name: 'data',
+        type: 'bytes'
+      }
+    ],
+    name: 'safeTransferFrom',
+    outputs: [],
+    stateMutability: 'nonpayable',
+    type: 'function'
+  },
+  {
+    inputs: [
+      {
+        internalType: 'address',
+        name: 'account',
+        type: 'address'
+      },
+      {
+        internalType: 'bool',
+        name: 'isActive',
+        type: 'bool'
+      }
     ],
     name: 'setAdmin',
     outputs: [],
@@ -252,8 +1116,34 @@ export const TASKBIT_ABI = [
   },
   {
     inputs: [
-      { internalType: 'address', name: 'account', type: 'address' },
-      { internalType: 'bool', name: 'isActive', type: 'bool' }
+      {
+        internalType: 'address',
+        name: 'operator',
+        type: 'address'
+      },
+      {
+        internalType: 'bool',
+        name: 'approved',
+        type: 'bool'
+      }
+    ],
+    name: 'setApprovalForAll',
+    outputs: [],
+    stateMutability: 'nonpayable',
+    type: 'function'
+  },
+  {
+    inputs: [
+      {
+        internalType: 'address',
+        name: 'account',
+        type: 'address'
+      },
+      {
+        internalType: 'bool',
+        name: 'isActive',
+        type: 'bool'
+      }
     ],
     name: 'setProfessor',
     outputs: [],
@@ -261,22 +1151,120 @@ export const TASKBIT_ABI = [
     type: 'function'
   },
   {
-    inputs: [{ internalType: 'uint256', name: 'tokenId', type: 'uint256' }],
-    name: 'tokenToContributionId',
-    outputs: [{ internalType: 'uint256', name: '', type: 'uint256' }],
+    inputs: [
+      {
+        internalType: 'bytes4',
+        name: 'interfaceId',
+        type: 'bytes4'
+      }
+    ],
+    name: 'supportsInterface',
+    outputs: [
+      {
+        internalType: 'bool',
+        name: '',
+        type: 'bool'
+      }
+    ],
     stateMutability: 'view',
     type: 'function'
   },
   {
-    inputs: [{ internalType: 'uint256', name: 'tokenId', type: 'uint256' }],
-    name: 'tokenURI',
-    outputs: [{ internalType: 'string', name: '', type: 'string' }],
+    inputs: [],
+    name: 'symbol',
+    outputs: [
+      {
+        internalType: 'string',
+        name: '',
+        type: 'string'
+      }
+    ],
     stateMutability: 'view',
     type: 'function'
   },
   {
-    inputs: [{ internalType: 'uint256', name: 'contributionId', type: 'uint256' }],
+    inputs: [
+      {
+        internalType: 'uint256',
+        name: 'contributionId',
+        type: 'uint256'
+      }
+    ],
     name: 'toggleContribution',
+    outputs: [],
+    stateMutability: 'nonpayable',
+    type: 'function'
+  },
+  {
+    inputs: [
+      {
+        internalType: 'uint256',
+        name: '',
+        type: 'uint256'
+      }
+    ],
+    name: 'tokenToContributionId',
+    outputs: [
+      {
+        internalType: 'uint256',
+        name: '',
+        type: 'uint256'
+      }
+    ],
+    stateMutability: 'view',
+    type: 'function'
+  },
+  {
+    inputs: [
+      {
+        internalType: 'uint256',
+        name: 'tokenId',
+        type: 'uint256'
+      }
+    ],
+    name: 'tokenURI',
+    outputs: [
+      {
+        internalType: 'string',
+        name: '',
+        type: 'string'
+      }
+    ],
+    stateMutability: 'view',
+    type: 'function'
+  },
+  {
+    inputs: [
+      {
+        internalType: 'address',
+        name: 'from',
+        type: 'address'
+      },
+      {
+        internalType: 'address',
+        name: 'to',
+        type: 'address'
+      },
+      {
+        internalType: 'uint256',
+        name: 'tokenId',
+        type: 'uint256'
+      }
+    ],
+    name: 'transferFrom',
+    outputs: [],
+    stateMutability: 'nonpayable',
+    type: 'function'
+  },
+  {
+    inputs: [
+      {
+        internalType: 'address',
+        name: 'newOwner',
+        type: 'address'
+      }
+    ],
+    name: 'transferOwnership',
     outputs: [],
     stateMutability: 'nonpayable',
     type: 'function'

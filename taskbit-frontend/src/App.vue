@@ -45,11 +45,6 @@ const navigationItems = computed(() => {
       icon: 'contributions'
     },
     {
-      label: 'Certificates',
-      to: '/certificates',
-      icon: 'certificates'
-    },
-    {
       label: 'Profile',
       to: '/profile',
       icon: 'profile'
@@ -112,8 +107,6 @@ function iconPath(icon) {
       return 'M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01'
     case 'profile':
       return 'M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm-7 9a7 7 0 1 1 14 0'
-    case 'certificates':
-      return 'M12 3l7 4v6c0 5-3.5 7.5-7 9-3.5-1.5-7-4-7-9V7l7-4Zm-3.5 10 2.2 2.2L15.5 10'
     case 'review':
       return 'm9 12 2 2 4-4M21 12c0 4.97-4.03 9-9 9s-9-4.03-9-9 4.03-9 9-9 9 4.03 9 9Z'
     case 'admin':
@@ -172,11 +165,6 @@ function iconPath(icon) {
         <div class="status-card">
           <p class="status-label">Reputation</p>
           <strong>{{ store.reputation.value }}</strong>
-        </div>
-
-        <div class="status-card">
-          <p class="status-label">Certificates</p>
-          <strong>{{ store.certificateCount.value }}</strong>
         </div>
       </div>
     </aside>

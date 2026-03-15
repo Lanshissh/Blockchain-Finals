@@ -56,6 +56,8 @@ function normalizeDueDateToUnix(dueDate) {
   }
 
   const [year, month, day] = parts
+
+  // Use local end-of-day so a selected date remains valid for the whole day.
   const parsed = new Date(year, month - 1, day, 23, 59, 59)
 
   return Number.isNaN(parsed.getTime()) ? 0 : Math.floor(parsed.getTime() / 1000)
@@ -66,59 +68,6 @@ function toNumber(value, fallback = 0) {
     return Number(value ?? fallback)
   } catch {
     return fallback
-  }
-}
-
-function normalizeAddress(value) {
-  return String(value || '').trim().toLowerCase()
-}
-
-function formatUnixDate(unixSeconds) {
-  const value = Number(unixSeconds || 0)
-  if (!value) return '—'
-
-  return new Date(value * 1000).toLocaleDateString(undefined, {
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric'
-  })
-}
-
-function decodeBase64Unicode(input) {
-  try {
-    if (typeof atob === 'function') {
-      return decodeURIComponent(
-        Array.from(atob(input), (char) => `%${char.charCodeAt(0).toString(16).padStart(2, '0')}`).join('')
-      )
-    }
-  } catch {
-    return ''
-  }
-
-  return ''
-}
-
-function parseDataUriJson(dataUri) {
-  if (!dataUri || typeof dataUri !== 'string') {
-    return null
-  }
-
-  const prefix = 'data:application/json;base64,'
-
-  if (!dataUri.startsWith(prefix)) {
-    return null
-  }
-
-  const decoded = decodeBase64Unicode(dataUri.slice(prefix.length))
-
-  if (!decoded) {
-    return null
-  }
-
-  try {
-    return JSON.parse(decoded)
-  } catch {
-    return null
   }
 }
 
@@ -287,72 +236,6 @@ export async function fetchMyReputation(contract) {
   return toNumber(value, 0)
 }
 
-export async function fetchContributionTokenId(contract, contributionId) {
-  const tokenId = await contract.contributionToTokenId(contributionId)
-  return toNumber(tokenId, 0)
-}
-
-export async function fetchCertificateByContribution(contract, contribution) {
-  const tokenId = await fetchContributionTokenId(contract, contribution.id)
-
-  if (!tokenId) {
-    return null
-  }
-
-  const tokenUri = await contract.tokenURI(tokenId)
-  const metadata = parseDataUriJson(tokenUri)
-
-  return {
-    tokenId,
-    contributionId: contribution.id,
-    title: contribution.title,
-    categoryLabel: contribution.categoryLabel,
-    description: contribution.description,
-    student: contribution.student,
-    pointsAwarded: contribution.pointsAwarded,
-    createdAt: contribution.createdAt,
-    reviewedAt: contribution.reviewedAt,
-    tokenUri,
-    metadata,
-    image: metadata?.image || '',
-    statusLabel: contribution.statusLabel,
-    issuedDateLabel: formatUnixDate(contribution.reviewedAt || contribution.createdAt)
-  }
-}
-
-export async function fetchMyCertificates(contract, contributions) {
-  const minted = contributions.filter((item) => item.nftMinted)
-
-  const certificates = await Promise.all(
-    minted.map(async (contribution) => {
-      try {
-        return await fetchCertificateByContribution(contract, contribution)
-      } catch {
-        return {
-          tokenId: 0,
-          contributionId: contribution.id,
-          title: contribution.title,
-          categoryLabel: contribution.categoryLabel,
-          description: contribution.description,
-          student: contribution.student,
-          pointsAwarded: contribution.pointsAwarded,
-          createdAt: contribution.createdAt,
-          reviewedAt: contribution.reviewedAt,
-          tokenUri: '',
-          metadata: null,
-          image: '',
-          statusLabel: contribution.statusLabel,
-          issuedDateLabel: formatUnixDate(contribution.reviewedAt || contribution.createdAt)
-        }
-      }
-    })
-  )
-
-  return certificates
-    .filter(Boolean)
-    .sort((a, b) => (b.reviewedAt || b.createdAt || 0) - (a.reviewedAt || a.createdAt || 0))
-}
-
 export async function checkReviewerRole(contract, account) {
   if (!account) {
     return false
@@ -414,7 +297,10 @@ export function getReadableBlockchainError(error) {
     return 'Transaction rejected by user.'
   }
 
-  if (error?.code === 'INSUFFICIENT_FUNDS' || message.includes('insufficient funds')) {
+  if (
+    error?.code === 'INSUFFICIENT_FUNDS' ||
+    message.includes('insufficient funds')
+  ) {
     return 'Insufficient gas funds in wallet.'
   }
 
@@ -440,7 +326,7 @@ export function getReadableBlockchainError(error) {
   }
 
   if (message.includes('bad_due')) {
-    return 'Please select a future due date.'
+    return 'Please select a future due date. Avoid using today if the selected day is already in progress.'
   }
 
   if (message.includes('bad_addr')) {
@@ -452,7 +338,7 @@ export function getReadableBlockchainError(error) {
   }
 
   if (message.includes('no_reviewer')) {
-    return 'Only the owner, admin, or professor can perform this action.'
+    return 'Only the owner, admin, professor, or reviewer can perform this action.'
   }
 
   if (message.includes('no_contrib')) {
@@ -468,7 +354,7 @@ export function getReadableBlockchainError(error) {
   }
 
   if (message.includes('not_pending')) {
-    return 'Only pending contributions can be deleted.'
+    return 'Only pending contributions can be updated or deleted.'
   }
 
   if (message.includes('reviewed')) {
@@ -476,26 +362,22 @@ export function getReadableBlockchainError(error) {
   }
 
   if (message.includes('not_done')) {
-    return 'Mark the contribution as completed first.'
+    return 'Complete the contribution first before minting the NFT.'
   }
 
   if (message.includes('not_approved')) {
-    return 'Contribution must be approved before the certificate NFT can be minted.'
-  }
-
-  if (message.includes('rejected')) {
-    return 'Rejected contributions cannot be completed or minted.'
+    return 'Contribution must be approved before minting the NFT.'
   }
 
   if (message.includes('minted')) {
-    return 'An NFT certificate already exists for this contribution.'
+    return 'NFT has already been minted for this contribution.'
   }
 
   if (
     error?.code === 'CALL_EXCEPTION' &&
     (message.includes('require(false)') || !rawMessage)
   ) {
-    return 'The deployed contract rejected this read or write call. This usually means the contract or ABI does not match the frontend.'
+    return 'The deployed contract rejected this read or write call. This usually means the contract access rules do not match the frontend role logic.'
   }
 
   if (
@@ -518,8 +400,4 @@ export function formatTxSummary(actionLabel, txResult) {
 
   const shortHash = `${txResult.hash.slice(0, 10)}...${txResult.hash.slice(-8)}`
   return `${actionLabel} succeeded. Tx: ${shortHash}`
-}
-
-export function isContributionOwnedByUser(contribution, account) {
-  return normalizeAddress(contribution?.student) === normalizeAddress(account)
 }
