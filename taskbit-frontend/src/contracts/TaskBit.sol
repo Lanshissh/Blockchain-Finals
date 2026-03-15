@@ -39,7 +39,6 @@ contract TaskBit is ERC721, Ownable {
 
     mapping(uint256 => Contribution) private contributions;
     mapping(address => uint256[]) private userContributionIds;
-
     mapping(address => bool) public admins;
     mapping(address => bool) public professors;
     mapping(address => uint256) public reputation;
@@ -92,50 +91,43 @@ contract TaskBit is ERC721, Ownable {
     );
 
     modifier onlyAdminOrOwner() {
-        require(
-            owner() == msg.sender || admins[msg.sender],
-            "Not admin or owner"
-        );
+        require(owner() == msg.sender || admins[msg.sender], "NO_ADMIN");
         _;
     }
 
     modifier onlyReviewer() {
-        require(
-            owner() == msg.sender ||
-                admins[msg.sender] ||
-                professors[msg.sender],
-            "Not authorized reviewer"
-        );
+        require(_isReviewer(msg.sender), "NO_REVIEWER");
+        _;
+    }
+
+    modifier contributionExists(uint256 contributionId) {
+        require(contributions[contributionId].student != address(0), "NO_CONTRIB");
         _;
     }
 
     constructor() ERC721("TaskBit Achievement", "TBA") Ownable(msg.sender) {}
 
-    function setAdmin(address _account, bool _isActive) external onlyOwner {
-        require(_account != address(0), "Invalid address");
-        admins[_account] = _isActive;
-        emit AdminUpdated(_account, _isActive);
+    function setAdmin(address account, bool isActive) external onlyOwner {
+        require(account != address(0), "BAD_ADDR");
+        admins[account] = isActive;
+        emit AdminUpdated(account, isActive);
     }
 
-    function setProfessor(address _account, bool _isActive)
-        external
-        onlyAdminOrOwner
-    {
-        require(_account != address(0), "Invalid address");
-        professors[_account] = _isActive;
-        emit ProfessorUpdated(_account, _isActive);
+    function setProfessor(address account, bool isActive) external onlyAdminOrOwner {
+        require(account != address(0), "BAD_ADDR");
+        professors[account] = isActive;
+        emit ProfessorUpdated(account, isActive);
     }
 
     function addContribution(
-        string calldata _title,
-        ContributionCategory _category,
-        string calldata _description,
-        uint256 _dueDate
+        string calldata title,
+        ContributionCategory category,
+        string calldata description,
+        uint256 dueDate
     ) external {
-        require(bytes(_title).length > 0, "Title cannot be empty");
-        require(bytes(_description).length > 0, "Description cannot be empty");
-        require(_dueDate > 0, "Due date is required");
-        require(_dueDate >= block.timestamp, "Due date cannot be in the past");
+        require(bytes(title).length > 0, "NO_TITLE");
+        require(bytes(description).length > 0, "NO_DESC");
+        require(dueDate >= block.timestamp, "BAD_DUE");
 
         uint256 contributionId = nextContributionId;
         nextContributionId++;
@@ -143,12 +135,12 @@ contract TaskBit is ERC721, Ownable {
         contributions[contributionId] = Contribution({
             id: contributionId,
             student: msg.sender,
-            title: _title,
-            category: _category,
-            description: _description,
+            title: title,
+            category: category,
+            description: description,
             completed: false,
             createdAt: block.timestamp,
-            dueDate: _dueDate,
+            dueDate: dueDate,
             deleted: false,
             nftMinted: false,
             status: ContributionStatus.Pending,
@@ -162,152 +154,123 @@ contract TaskBit is ERC721, Ownable {
         emit ContributionCreated(
             contributionId,
             msg.sender,
-            _title,
-            _category,
-            _description,
+            title,
+            category,
+            description,
             block.timestamp,
-            _dueDate
+            dueDate
         );
     }
 
-    function toggleContribution(uint256 _contributionId) external {
-        Contribution storage contribution = contributions[_contributionId];
+    function toggleContribution(uint256 contributionId)
+        external
+        contributionExists(contributionId)
+    {
+        Contribution storage contribution = contributions[contributionId];
 
-        require(contribution.student != address(0), "Contribution does not exist");
-        require(contribution.student == msg.sender, "Not your contribution");
-        require(!contribution.deleted, "Contribution is deleted");
-        require(
-            contribution.status != ContributionStatus.Rejected,
-            "Rejected contribution cannot be toggled"
-        );
+        require(contribution.student == msg.sender, "NOT_OWNER");
+        require(!contribution.deleted, "DELETED");
+        require(contribution.status == ContributionStatus.Pending, "NOT_PENDING");
 
         contribution.completed = !contribution.completed;
 
-        emit ContributionUpdated(
-            _contributionId,
-            msg.sender,
-            contribution.completed
-        );
+        emit ContributionUpdated(contributionId, msg.sender, contribution.completed);
     }
 
-    function approveContribution(uint256 _contributionId, uint256 _points)
+    function approveContribution(uint256 contributionId, uint256 points)
         external
         onlyReviewer
+        contributionExists(contributionId)
     {
-        Contribution storage contribution = contributions[_contributionId];
+        Contribution storage contribution = contributions[contributionId];
 
-        require(contribution.student != address(0), "Contribution does not exist");
-        require(!contribution.deleted, "Contribution is deleted");
-        require(
-            contribution.status == ContributionStatus.Pending,
-            "Contribution already reviewed"
-        );
+        require(!contribution.deleted, "DELETED");
+        require(contribution.status == ContributionStatus.Pending, "REVIEWED");
 
         contribution.status = ContributionStatus.Approved;
-        contribution.pointsAwarded = _points;
+        contribution.pointsAwarded = points;
         contribution.reviewedBy = msg.sender;
         contribution.reviewedAt = block.timestamp;
 
-        reputation[contribution.student] += _points;
+        reputation[contribution.student] += points;
 
         emit ContributionApproved(
-            _contributionId,
+            contributionId,
             contribution.student,
             msg.sender,
-            _points
+            points
         );
     }
 
-    function rejectContribution(uint256 _contributionId)
+    function rejectContribution(uint256 contributionId)
         external
         onlyReviewer
+        contributionExists(contributionId)
     {
-        Contribution storage contribution = contributions[_contributionId];
+        Contribution storage contribution = contributions[contributionId];
 
-        require(contribution.student != address(0), "Contribution does not exist");
-        require(!contribution.deleted, "Contribution is deleted");
-        require(
-            contribution.status == ContributionStatus.Pending,
-            "Contribution already reviewed"
-        );
+        require(!contribution.deleted, "DELETED");
+        require(contribution.status == ContributionStatus.Pending, "REVIEWED");
 
         contribution.status = ContributionStatus.Rejected;
         contribution.reviewedBy = msg.sender;
         contribution.reviewedAt = block.timestamp;
 
         emit ContributionRejected(
-            _contributionId,
+            contributionId,
             contribution.student,
             msg.sender
         );
     }
 
-    function mintContributionNFT(uint256 _contributionId) external {
-        Contribution storage contribution = contributions[_contributionId];
+    function mintContributionNFT(uint256 contributionId)
+        external
+        contributionExists(contributionId)
+    {
+        Contribution storage contribution = contributions[contributionId];
 
-        require(contribution.student != address(0), "Contribution does not exist");
-        require(contribution.student == msg.sender, "Not your contribution");
-        require(!contribution.deleted, "Contribution is deleted");
-        require(contribution.completed, "Contribution must be completed first");
-        require(
-            contribution.status == ContributionStatus.Approved,
-            "Contribution must be approved first"
-        );
-        require(!contribution.nftMinted, "NFT already minted for this contribution");
+        require(contribution.student == msg.sender, "NOT_OWNER");
+        require(!contribution.deleted, "DELETED");
+        require(contribution.completed, "NOT_DONE");
+        require(contribution.status == ContributionStatus.Approved, "NOT_APPROVED");
+        require(!contribution.nftMinted, "MINTED");
 
         uint256 tokenId = nextTokenId;
         nextTokenId++;
 
         contribution.nftMinted = true;
-        tokenToContributionId[tokenId] = _contributionId;
+        tokenToContributionId[tokenId] = contributionId;
 
         _safeMint(msg.sender, tokenId);
 
-        emit ContributionNFTMinted(msg.sender, _contributionId, tokenId);
+        emit ContributionNFTMinted(msg.sender, contributionId, tokenId);
     }
 
-    function deleteContribution(uint256 _contributionId) external {
-        Contribution storage contribution = contributions[_contributionId];
+    function deleteContribution(uint256 contributionId)
+        external
+        contributionExists(contributionId)
+    {
+        Contribution storage contribution = contributions[contributionId];
 
-        require(contribution.student != address(0), "Contribution does not exist");
-        require(contribution.student == msg.sender, "Not your contribution");
-        require(!contribution.deleted, "Contribution already deleted");
-        require(
-            contribution.status == ContributionStatus.Pending,
-            "Only pending contributions can be deleted"
-        );
+        require(contribution.student == msg.sender, "NOT_OWNER");
+        require(!contribution.deleted, "DELETED");
+        require(contribution.status == ContributionStatus.Pending, "NOT_PENDING");
 
         contribution.deleted = true;
 
-        emit ContributionDeleted(_contributionId, msg.sender);
+        emit ContributionDeleted(contributionId, msg.sender);
     }
 
-    function getContribution(uint256 _contributionId)
+    function getContribution(uint256 contributionId)
         external
         view
+        contributionExists(contributionId)
         returns (Contribution memory)
     {
-        Contribution memory contribution = contributions[_contributionId];
-        require(contribution.student != address(0), "Contribution does not exist");
-        return contribution;
+        return contributions[contributionId];
     }
 
-    function getMyContribution(uint256 _contributionId)
-        external
-        view
-        returns (Contribution memory)
-    {
-        Contribution memory contribution = contributions[_contributionId];
-        require(contribution.student != address(0), "Contribution does not exist");
-        require(contribution.student == msg.sender, "Not your contribution");
-        return contribution;
-    }
-
-    function getMyContributions()
-        external
-        view
-        returns (Contribution[] memory)
-    {
+    function getMyContributions() external view returns (Contribution[] memory) {
         uint256[] memory ids = userContributionIds[msg.sender];
         Contribution[] memory result = new Contribution[](ids.length);
 
@@ -318,23 +281,30 @@ contract TaskBit is ERC721, Ownable {
         return result;
     }
 
-    function getMyContributionCount() external view returns (uint256) {
-        return userContributionIds[msg.sender].length;
-    }
-
-    function getContributionIdsByStudent(address _student)
+    function getAllContributions()
         external
         view
-        returns (uint256[] memory)
+        onlyReviewer
+        returns (Contribution[] memory)
     {
-        return userContributionIds[_student];
+        Contribution[] memory result = new Contribution[](nextContributionId);
+
+        for (uint256 i = 0; i < nextContributionId; i++) {
+            result[i] = contributions[i];
+        }
+
+        return result;
     }
 
     function getMyReputation() external view returns (uint256) {
         return reputation[msg.sender];
     }
 
-    function isReviewer(address _account) external view returns (bool) {
-        return owner() == _account || admins[_account] || professors[_account];
+    function isReviewer(address account) external view returns (bool) {
+        return _isReviewer(account);
+    }
+
+    function _isReviewer(address account) internal view returns (bool) {
+        return owner() == account || admins[account] || professors[account];
     }
 }

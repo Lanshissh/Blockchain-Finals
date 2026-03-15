@@ -1,5 +1,5 @@
 export const TASKBIT_ADDRESS =
-  import.meta.env.VITE_TASKBIT_ADDRESS || '0x035DA755C53cE09E82472c4be652C4175c3e6fbA'
+  import.meta.env.VITE_TASKBIT_ADDRESS || '0x97Fc5A8C241256C6033362DFB0B3870636ea63f7'
 
 export const CONTRIBUTION_CATEGORIES = [
   'Paper',
@@ -21,22 +21,22 @@ export const TASKBIT_ABI = [
     "inputs": [
       {
         "internalType": "string",
-        "name": "_title",
+        "name": "title",
         "type": "string"
       },
       {
         "internalType": "enum TaskBit.ContributionCategory",
-        "name": "_category",
+        "name": "category",
         "type": "uint8"
       },
       {
         "internalType": "string",
-        "name": "_description",
+        "name": "description",
         "type": "string"
       },
       {
         "internalType": "uint256",
-        "name": "_dueDate",
+        "name": "dueDate",
         "type": "uint256"
       }
     ],
@@ -266,12 +266,12 @@ export const TASKBIT_ABI = [
     "inputs": [
       {
         "internalType": "uint256",
-        "name": "_contributionId",
+        "name": "contributionId",
         "type": "uint256"
       },
       {
         "internalType": "uint256",
-        "name": "_points",
+        "name": "points",
         "type": "uint256"
       }
     ],
@@ -458,7 +458,7 @@ export const TASKBIT_ABI = [
     "inputs": [
       {
         "internalType": "uint256",
-        "name": "_contributionId",
+        "name": "contributionId",
         "type": "uint256"
       }
     ],
@@ -471,7 +471,7 @@ export const TASKBIT_ABI = [
     "inputs": [
       {
         "internalType": "uint256",
-        "name": "_contributionId",
+        "name": "contributionId",
         "type": "uint256"
       }
     ],
@@ -522,7 +522,7 @@ export const TASKBIT_ABI = [
     "inputs": [
       {
         "internalType": "uint256",
-        "name": "_contributionId",
+        "name": "contributionId",
         "type": "uint256"
       }
     ],
@@ -593,12 +593,12 @@ export const TASKBIT_ABI = [
     "inputs": [
       {
         "internalType": "address",
-        "name": "_account",
+        "name": "account",
         "type": "address"
       },
       {
         "internalType": "bool",
-        "name": "_isActive",
+        "name": "isActive",
         "type": "bool"
       }
     ],
@@ -629,12 +629,12 @@ export const TASKBIT_ABI = [
     "inputs": [
       {
         "internalType": "address",
-        "name": "_account",
+        "name": "account",
         "type": "address"
       },
       {
         "internalType": "bool",
-        "name": "_isActive",
+        "name": "isActive",
         "type": "bool"
       }
     ],
@@ -647,7 +647,7 @@ export const TASKBIT_ABI = [
     "inputs": [
       {
         "internalType": "uint256",
-        "name": "_contributionId",
+        "name": "contributionId",
         "type": "uint256"
       }
     ],
@@ -756,6 +756,91 @@ export const TASKBIT_ABI = [
     "type": "function"
   },
   {
+    "inputs": [],
+    "name": "getAllContributions",
+    "outputs": [
+      {
+        "components": [
+          {
+            "internalType": "uint256",
+            "name": "id",
+            "type": "uint256"
+          },
+          {
+            "internalType": "address",
+            "name": "student",
+            "type": "address"
+          },
+          {
+            "internalType": "string",
+            "name": "title",
+            "type": "string"
+          },
+          {
+            "internalType": "enum TaskBit.ContributionCategory",
+            "name": "category",
+            "type": "uint8"
+          },
+          {
+            "internalType": "string",
+            "name": "description",
+            "type": "string"
+          },
+          {
+            "internalType": "bool",
+            "name": "completed",
+            "type": "bool"
+          },
+          {
+            "internalType": "uint256",
+            "name": "createdAt",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "dueDate",
+            "type": "uint256"
+          },
+          {
+            "internalType": "bool",
+            "name": "deleted",
+            "type": "bool"
+          },
+          {
+            "internalType": "bool",
+            "name": "nftMinted",
+            "type": "bool"
+          },
+          {
+            "internalType": "enum TaskBit.ContributionStatus",
+            "name": "status",
+            "type": "uint8"
+          },
+          {
+            "internalType": "uint256",
+            "name": "pointsAwarded",
+            "type": "uint256"
+          },
+          {
+            "internalType": "address",
+            "name": "reviewedBy",
+            "type": "address"
+          },
+          {
+            "internalType": "uint256",
+            "name": "reviewedAt",
+            "type": "uint256"
+          }
+        ],
+        "internalType": "struct TaskBit.Contribution[]",
+        "name": "",
+        "type": "tuple[]"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
     "inputs": [
       {
         "internalType": "uint256",
@@ -778,7 +863,7 @@ export const TASKBIT_ABI = [
     "inputs": [
       {
         "internalType": "uint256",
-        "name": "_contributionId",
+        "name": "contributionId",
         "type": "uint256"
       }
     ],
@@ -860,129 +945,6 @@ export const TASKBIT_ABI = [
         "internalType": "struct TaskBit.Contribution",
         "name": "",
         "type": "tuple"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [
-      {
-        "internalType": "address",
-        "name": "_student",
-        "type": "address"
-      }
-    ],
-    "name": "getContributionIdsByStudent",
-    "outputs": [
-      {
-        "internalType": "uint256[]",
-        "name": "",
-        "type": "uint256[]"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [
-      {
-        "internalType": "uint256",
-        "name": "_contributionId",
-        "type": "uint256"
-      }
-    ],
-    "name": "getMyContribution",
-    "outputs": [
-      {
-        "components": [
-          {
-            "internalType": "uint256",
-            "name": "id",
-            "type": "uint256"
-          },
-          {
-            "internalType": "address",
-            "name": "student",
-            "type": "address"
-          },
-          {
-            "internalType": "string",
-            "name": "title",
-            "type": "string"
-          },
-          {
-            "internalType": "enum TaskBit.ContributionCategory",
-            "name": "category",
-            "type": "uint8"
-          },
-          {
-            "internalType": "string",
-            "name": "description",
-            "type": "string"
-          },
-          {
-            "internalType": "bool",
-            "name": "completed",
-            "type": "bool"
-          },
-          {
-            "internalType": "uint256",
-            "name": "createdAt",
-            "type": "uint256"
-          },
-          {
-            "internalType": "uint256",
-            "name": "dueDate",
-            "type": "uint256"
-          },
-          {
-            "internalType": "bool",
-            "name": "deleted",
-            "type": "bool"
-          },
-          {
-            "internalType": "bool",
-            "name": "nftMinted",
-            "type": "bool"
-          },
-          {
-            "internalType": "enum TaskBit.ContributionStatus",
-            "name": "status",
-            "type": "uint8"
-          },
-          {
-            "internalType": "uint256",
-            "name": "pointsAwarded",
-            "type": "uint256"
-          },
-          {
-            "internalType": "address",
-            "name": "reviewedBy",
-            "type": "address"
-          },
-          {
-            "internalType": "uint256",
-            "name": "reviewedAt",
-            "type": "uint256"
-          }
-        ],
-        "internalType": "struct TaskBit.Contribution",
-        "name": "",
-        "type": "tuple"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [],
-    "name": "getMyContributionCount",
-    "outputs": [
-      {
-        "internalType": "uint256",
-        "name": "",
-        "type": "uint256"
       }
     ],
     "stateMutability": "view",
@@ -1114,7 +1076,7 @@ export const TASKBIT_ABI = [
     "inputs": [
       {
         "internalType": "address",
-        "name": "_account",
+        "name": "account",
         "type": "address"
       }
     ],
