@@ -1,214 +1,375 @@
 <template>
-  <div class="app-shell dashboard-shell">
-    <aside class="sidebar-shell">
-      <div class="sidebar-panel">
-        <div class="brand sidebar-brand">
-          <img src="/logo.png" class="brand-logo" alt="TaskBit Logo" />
-          <div>
-            <h1>{{ appBrand }}</h1>
-            <p class="brand-subtitle">Blockchain Academic Contribution Tracker</p>
-          </div>
+  <section class="page-layout">
+    <header class="hero-card">
+      <div>
+        <p class="content-header-eyebrow">Academic Records</p>
+        <h2>{{ heroTitle }}</h2>
+        <p>
+          {{ heroDescription }}
+        </p>
+      </div>
+
+      <div class="hero-stats">
+        <div class="stat-card">
+          <span class="stat-label">Role</span>
+          <strong>{{ roleLabel }}</strong>
         </div>
-
-        <div class="sidebar-section-label">Navigation</div>
-        <nav class="page-nav sidebar-nav">
-          <RouterLink
-            to="/dashboard"
-            class="page-nav-link sidebar-nav-link"
-            active-class="page-nav-link-active"
-          >
-            <span class="nav-link-icon">🏠</span>
-            <span>Dashboard</span>
-          </RouterLink>
-
-          <RouterLink
-            to="/calendar"
-            class="page-nav-link sidebar-nav-link"
-            active-class="page-nav-link-active"
-          >
-            <span class="nav-link-icon">📅</span>
-            <span>Calendar</span>
-          </RouterLink>
-
-          <RouterLink
-            to="/contributions"
-            class="page-nav-link sidebar-nav-link"
-            active-class="page-nav-link-active"
-          >
-            <span class="nav-link-icon">📚</span>
-            <span>Academic Contributions</span>
-          </RouterLink>
-        </nav>
-
-        <div class="sidebar-section-label">Connection</div>
-        <div class="sidebar-status-stack">
-          <span class="network-badge sidebar-chip" :class="{ 'network-badge-warning': isWrongNetwork }">
-            {{ networkName }}
-          </span>
-
-          <span class="network-detail sidebar-chip">
-            {{ walletStatus }}
-          </span>
-
-          <span class="network-detail sidebar-chip">
-            {{ contractStatus }}
-          </span>
-
-          <div v-if="account" class="wallet-badge sidebar-wallet-badge">
-            <span class="wallet-dot" aria-hidden="true"></span>
-            {{ `${account.slice(0, 6)}...${account.slice(-4)}` }}
-          </div>
+        <div class="stat-card">
+          <span class="stat-label">Total</span>
+          <strong>{{ contributionCount }}</strong>
+        </div>
+        <div class="stat-card">
+          <span class="stat-label">Pending</span>
+          <strong>{{ pendingContributions.length }}</strong>
+        </div>
+        <div class="stat-card">
+          <span class="stat-label">Approved</span>
+          <strong>{{ approvedContributions.length }}</strong>
         </div>
       </div>
-    </aside>
+    </header>
 
-    <div class="dashboard-main">
-      <header class="content-header">
-        <div class="content-header-copy">
-          <p class="content-header-eyebrow">Workspace</p>
-          <h2>Academic Contributions</h2>
-          <p class="content-header-subtitle">
-            Review, complete, and delete your recorded academic contributions.
-          </p>
+    <section v-if="isWrongNetwork" class="info-card">
+      <h3>Wrong Network</h3>
+      <p>
+        Your wallet is connected to the wrong network. Switch to
+        {{ networkName }} before managing contributions.
+      </p>
+      <div class="action-row">
+        <button class="warning-btn" @click="switchNetwork">Switch Network</button>
+      </div>
+    </section>
+
+    <section class="content-grid">
+      <article class="panel-card">
+        <div class="panel-header">
+          <div>
+            <h3>{{ formTitle }}</h3>
+            <p>{{ formDescription }}</p>
+          </div>
+          <button class="ghost-btn" @click="resetContributionForm">Reset</button>
         </div>
 
-        <div class="content-header-status">
-          <span class="network-badge" :class="{ 'network-badge-warning': isWrongNetwork }">
-            {{ networkName }}
-          </span>
+        <form class="contribution-form" @submit.prevent="addContribution">
+          <label class="field">
+            <span>Title</span>
+            <input
+              v-model="contributionForm.title"
+              type="text"
+              placeholder="Enter contribution title"
+              :disabled="!canSubmit"
+            />
+          </label>
 
-          <div v-if="account" class="wallet-badge header-wallet-badge">
-            <span class="wallet-dot" aria-hidden="true"></span>
-            {{ `${account.slice(0, 6)}...${account.slice(-4)}` }}
+          <label class="field">
+            <span>Category</span>
+            <select v-model="contributionForm.category" :disabled="!canSubmit">
+              <option
+                v-for="option in categoryOptions"
+                :key="option.value"
+                :value="option.value"
+              >
+                {{ option.label }}
+              </option>
+            </select>
+          </label>
+
+          <label class="field">
+            <span>Description</span>
+            <textarea
+              v-model="contributionForm.description"
+              rows="5"
+              placeholder="Describe the contribution"
+              :disabled="!canSubmit"
+            />
+          </label>
+
+          <label class="field">
+            <span>Due Date</span>
+            <input
+              v-model="contributionForm.dueDate"
+              type="date"
+              :disabled="!canSubmit"
+            />
+          </label>
+
+          <button
+            class="primary-btn full-width"
+            type="submit"
+            :disabled="!canSubmit"
+          >
+            {{ canSubmit ? 'Submit Contribution' : 'Student submission only' }}
+          </button>
+        </form>
+      </article>
+
+      <article class="panel-card">
+        <div class="panel-header">
+          <div>
+            <h3>{{ sideSummaryTitle }}</h3>
+            <p>{{ sideSummaryDescription }}</p>
+          </div>
+          <button class="ghost-btn" @click="loadContributions">Refresh</button>
+        </div>
+
+        <div class="overview-grid">
+          <div class="mini-stat">
+            <span>Wallet</span>
+            <strong>{{ shortAccount }}</strong>
+          </div>
+          <div class="mini-stat">
+            <span>Role</span>
+            <strong>{{ roleLabel }}</strong>
+          </div>
+          <div class="mini-stat">
+            <span>Completed</span>
+            <strong>{{ completedContributions.length }}</strong>
+          </div>
+          <div class="mini-stat">
+            <span>Rejected</span>
+            <strong>{{ rejectedContributions.length }}</strong>
           </div>
         </div>
-      </header>
 
-      <main class="main-content">
-        <section class="toolbar-card">
-          <div class="toolbar-copy">
-            <h3>Contribution Actions</h3>
-            <p class="section-subtitle">
-              Refresh your list and manage contribution status below.
-            </p>
+        <div class="details-grid">
+          <div>
+            <span class="detail-label">Wallet Status</span>
+            <strong>{{ walletStatus }}</strong>
           </div>
-
-          <div class="hero-actions">
-            <button class="refresh-btn" @click="loadContributions" :disabled="isLoadingContributions">
-              {{ isLoadingContributions ? 'Refreshing...' : 'Refresh' }}
-            </button>
+          <div>
+            <span class="detail-label">Contract</span>
+            <strong>{{ contractStatus }}</strong>
           </div>
-        </section>
+          <div>
+            <span class="detail-label">Transaction</span>
+            <strong>{{ txStatus }}</strong>
+          </div>
+          <div>
+            <span class="detail-label">Explorer</span>
+            <strong>
+              <a
+                v-if="latestTxUrl"
+                :href="latestTxUrl"
+                target="_blank"
+                rel="noreferrer"
+              >
+                {{ shortTxHash }}
+              </a>
+              <template v-else>—</template>
+            </strong>
+          </div>
+        </div>
+      </article>
+    </section>
 
-        <section class="contribution-list">
-          <div class="section-header section-header-tight">
+    <section v-if="showReviewerPanel" class="panel-card">
+      <div class="panel-header">
+        <div>
+          <h3>{{ reviewQueueTitle }}</h3>
+          <p>{{ reviewQueueDescription }}</p>
+        </div>
+      </div>
+
+      <div v-if="!reviewQueue.length" class="empty-state">
+        No pending contributions to review.
+      </div>
+
+      <div v-else class="contribution-list">
+        <article
+          v-for="item in reviewQueue"
+          :key="`review-${item.id}`"
+          class="contribution-card"
+        >
+          <div class="contribution-top">
             <div>
-              <h3>My Academic Contributions</h3>
-              <p class="section-subtitle">
-                Your records are loaded from the blockchain and organized here.
+              <h4>{{ item.title }}</h4>
+              <p class="contribution-meta">
+                #{{ item.id }} · {{ item.categoryLabel }}
               </p>
+            </div>
+
+            <div class="badge-group">
+              <span class="badge category">{{ item.categoryLabel }}</span>
+              <span class="badge pending">Pending</span>
+              <span
+                class="badge"
+                :class="item.completed ? 'complete' : 'incomplete'"
+              >
+                {{ item.completed ? 'Completed' : 'Pending Work' }}
+              </span>
             </div>
           </div>
 
-          <div v-if="contributions.length === 0 && !isLoadingContributions" class="empty-state">
-            <div class="empty-illustration" aria-hidden="true">📚</div>
-            <p>No contributions recorded yet.</p>
+          <p class="description">{{ item.description }}</p>
+
+          <div class="details-grid">
+            <div>
+              <span class="detail-label">Due Date</span>
+              <strong>{{ formatDate(item.dueDate) }}</strong>
+            </div>
+            <div>
+              <span class="detail-label">Created</span>
+              <strong>{{ formatDate(item.createdAt) }}</strong>
+            </div>
+            <div>
+              <span class="detail-label">Student</span>
+              <strong>{{ shortenAddress(item.student) }}</strong>
+            </div>
+            <div>
+              <span class="detail-label">Points</span>
+              <strong>{{ item.pointsAwarded }}</strong>
+            </div>
           </div>
 
-          <ul v-else>
-            <li
-              v-for="contribution in contributions"
-              :key="contribution.id"
-              class="contribution-card"
-              :class="{ completed: contribution.completed, pending: !contribution.completed }"
-            >
-              <div class="card-top">
-                <div class="card-copy">
-                  <div class="card-heading-row">
-                    <h4 class="contribution-title">{{ contribution.title }}</h4>
+          <div class="reviewer-panel">
+            <div class="reviewer-points">
+              <label :for="`points-${item.id}`">Points</label>
+              <input
+                :id="`points-${item.id}`"
+                v-model.number="reviewPoints[item.id]"
+                type="number"
+                min="0"
+                placeholder="0"
+              />
+            </div>
 
-                    <span
-                      class="status-badge"
-                      :class="contribution.completed ? 'status-complete' : 'status-pending'"
-                    >
-                      {{ contribution.completed ? 'Completed' : 'Pending' }}
-                    </span>
-                  </div>
+            <div class="reviewer-actions">
+              <button
+                class="success-btn"
+                @click="approveContribution(item.id, reviewPoints[item.id] || 0)"
+              >
+                Approve
+              </button>
 
-                  <div class="meta-row meta-row-wrap">
-                    <span class="category-badge">{{ contribution.categoryLabel }}</span>
-                    <span class="timestamp">Created: {{ formatDate(contribution.createdAt) }}</span>
+              <button class="danger-btn" @click="rejectContribution(item.id)">
+                Reject
+              </button>
+            </div>
+          </div>
+        </article>
+      </div>
+    </section>
 
-                    <span v-if="contribution.dueDate" class="due-date-badge">
-                      Due: {{ formatDate(contribution.dueDate) }}
-                    </span>
-
-                    <span v-if="contribution.dueDate" class="deadline-badge" :class="deadlineClass(contribution)">
-                      {{ deadlineLabel(contribution) }}
-                    </span>
-                  </div>
-
-                  <p class="contribution-description">
-                    {{ contribution.description }}
-                  </p>
-                </div>
-              </div>
-
-              <div class="card-actions">
-                <button
-                  class="action-btn"
-                  @click="toggleContribution(contribution.id)"
-                  :disabled="!canEditContributions"
-                >
-                  {{ contribution.completed ? 'Undo' : 'Mark Complete' }}
-                </button>
-
-                <button
-                  class="delete-btn"
-                  @click="removeContribution(contribution.id)"
-                  :disabled="!canEditContributions"
-                >
-                  Delete
-                </button>
-              </div>
-            </li>
-          </ul>
-        </section>
-      </main>
-    </div>
-
-    <div
-      v-if="txStatus && txStatus !== 'No transaction yet'"
-      class="tx-toast"
-      :class="toastClass"
-    >
-      <div class="toast-content">
-        <span class="toast-message">{{ txStatus }}</span>
-
-        <a
-          v-if="latestTxUrl"
-          class="toast-link"
-          :href="latestTxUrl"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          View on Etherscan
-        </a>
-
-        <span v-if="latestTxHash" class="toast-hash">
-          {{ shortTxHash }}
-        </span>
+    <section class="panel-card">
+      <div class="panel-header">
+        <div>
+          <h3>{{ listTitle }}</h3>
+          <p>{{ listDescription }}</p>
+        </div>
       </div>
 
-      <button class="toast-close" @click="resetTxStatus">x</button>
-    </div>
-  </div>
+      <div v-if="isLoadingContributions" class="empty-state">
+        Loading contributions...
+      </div>
+
+      <div v-else-if="!visibleContributions.length" class="empty-state">
+        No contributions yet.
+      </div>
+
+      <div v-else class="contribution-list">
+        <article
+          v-for="item in visibleContributions"
+          :key="item.id"
+          class="contribution-card"
+        >
+          <div class="contribution-top">
+            <div>
+              <h4>{{ item.title }}</h4>
+              <p class="contribution-meta">
+                #{{ item.id }} · {{ item.categoryLabel }}
+              </p>
+            </div>
+
+            <div class="badge-group">
+              <span class="badge category">{{ item.categoryLabel }}</span>
+              <span class="badge" :class="statusClass(item.status)">
+                {{ item.statusLabel }}
+              </span>
+              <span
+                class="badge"
+                :class="item.completed ? 'complete' : 'incomplete'"
+              >
+                {{ item.completed ? 'Completed' : 'Pending Work' }}
+              </span>
+            </div>
+          </div>
+
+          <p class="description">{{ item.description }}</p>
+
+          <div class="details-grid">
+            <div>
+              <span class="detail-label">Due Date</span>
+              <strong>{{ formatDate(item.dueDate) }}</strong>
+            </div>
+            <div>
+              <span class="detail-label">Created</span>
+              <strong>{{ formatDate(item.createdAt) }}</strong>
+            </div>
+            <div>
+              <span class="detail-label">Points</span>
+              <strong>{{ item.pointsAwarded }}</strong>
+            </div>
+            <div>
+              <span class="detail-label">NFT</span>
+              <strong>{{ item.nftMinted ? 'Minted' : 'Not Minted' }}</strong>
+            </div>
+          </div>
+
+          <div
+            v-if="item.reviewedBy && item.reviewedBy !== zeroAddress"
+            class="review-box"
+          >
+            <span>Reviewed by:</span>
+            <strong>{{ shortenAddress(item.reviewedBy) }}</strong>
+            <span>· {{ formatDate(item.reviewedAt) }}</span>
+          </div>
+
+          <div class="action-row">
+            <button
+              v-if="canStudentManage(item)"
+              class="secondary-btn"
+              :disabled="item.status === 2"
+              @click="toggleContribution(item.id)"
+            >
+              {{ item.completed ? 'Mark Incomplete' : 'Mark Complete' }}
+            </button>
+
+            <button
+              v-if="canStudentDelete(item)"
+              class="danger-btn"
+              :disabled="item.status !== 0"
+              @click="removeContribution(item.id)"
+            >
+              Delete
+            </button>
+
+            <button
+              v-if="canStudentMint(item)"
+              class="success-btn"
+              :disabled="!canMint(item)"
+              @click="mintNft(item.id)"
+            >
+              {{ item.nftMinted ? 'NFT Minted' : 'Mint NFT' }}
+            </button>
+
+            <span v-if="showReadOnlyNote(item)" class="inline-note">
+              {{ readOnlyNote(item) }}
+            </span>
+          </div>
+        </article>
+      </div>
+    </section>
+  </section>
 </template>
 
 <script setup>
-import { computed, onMounted } from 'vue'
-import { RouterLink } from 'vue-router'
+import { computed, onMounted, reactive } from 'vue'
 import { useAuctusStore } from '../composables/useAuctusStore'
+
+const zeroAddress = '0x0000000000000000000000000000000000000000'
+
+const store = useAuctusStore()
+const reviewPoints = reactive({})
 
 const {
   account,
@@ -217,89 +378,207 @@ const {
   txStatus,
   latestTxHash,
   latestTxUrl,
-  contributions,
+  contributionForm,
+  visibleContributions,
+  pendingContributions,
+  approvedContributions,
+  rejectedContributions,
+  completedContributions,
+  contributionCount,
+  isReviewer,
+  isProfessor,
+  isAdmin,
+  isOwner,
+  roleLabel,
+  userRole,
+  categoryOptions,
   isWrongNetwork,
   isLoadingContributions,
+  switchNetwork,
+  loadContributions,
+  addContribution,
   toggleContribution,
   removeContribution,
-  resetTxStatus,
+  approveContribution,
+  rejectContribution,
+  mintNft,
+  resetContributionForm,
   init,
-  loadContributions,
-  appBrand,
   networkName
-} = useAuctusStore()
+} = store
 
-const loweredTxStatus = computed(() => txStatus.value.toLowerCase())
+const shortAccount = computed(() =>
+  account.value ? `${account.value.slice(0, 6)}...${account.value.slice(-4)}` : 'Not connected'
+)
 
-const canEditContributions = computed(() => {
-  return Boolean(account.value) && !isWrongNetwork.value && !isLoadingContributions.value
+const shortTxHash = computed(() =>
+  latestTxHash.value
+    ? `${latestTxHash.value.slice(0, 10)}...${latestTxHash.value.slice(-8)}`
+    : ''
+)
+
+const canSubmit = computed(() => userRole.value === 'student')
+const showReviewerPanel = computed(() => isProfessor.value || isAdmin.value || isOwner.value)
+
+const reviewQueue = computed(() =>
+  pendingContributions.value
+    .slice()
+    .sort((a, b) => Number(a.dueDate) - Number(b.dueDate))
+)
+
+const heroTitle = computed(() => {
+  if (isAdmin.value || isOwner.value) return 'Contribution Management'
+  if (isProfessor.value) return 'Contribution Review'
+  return 'My Contributions'
 })
 
-const shortTxHash = computed(() => {
-  if (!latestTxHash.value) return ''
-  return `${latestTxHash.value.slice(0, 10)}...${latestTxHash.value.slice(-8)}`
+const heroDescription = computed(() => {
+  if (isAdmin.value || isOwner.value) {
+    return 'Review contribution records, monitor approval status, and manage academic workflow activity.'
+  }
+  if (isProfessor.value) {
+    return 'Review student submissions, assign points, and approve or reject academic contributions.'
+  }
+  return 'Submit, complete, and mint NFT certificates for your academic contributions on-chain.'
 })
 
-const toastClass = computed(() => ({
-  success:
-    !loweredTxStatus.value.includes('sending') &&
-    !loweredTxStatus.value.includes('rejected') &&
-    !loweredTxStatus.value.includes('wrong network') &&
-    !loweredTxStatus.value.includes('failed') &&
-    !loweredTxStatus.value.includes('reverted') &&
-    !loweredTxStatus.value.includes('insufficient') &&
-    !loweredTxStatus.value.includes('connect wallet'),
-  pending: loweredTxStatus.value.includes('sending'),
-  error:
-    loweredTxStatus.value.includes('rejected') ||
-    loweredTxStatus.value.includes('wrong network') ||
-    loweredTxStatus.value.includes('failed') ||
-    loweredTxStatus.value.includes('reverted') ||
-    loweredTxStatus.value.includes('insufficient') ||
-    loweredTxStatus.value.includes('connect wallet')
-}))
+const formTitle = computed(() => {
+  if (canSubmit.value) return 'Submit Contribution'
+  return 'Submission Access'
+})
 
-const today = new Date()
-const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate())
+const formDescription = computed(() => {
+  if (canSubmit.value) return 'Create a new blockchain contribution record.'
+  return 'Contribution submission is currently available to student accounts.'
+})
+
+const sideSummaryTitle = computed(() => {
+  if (isAdmin.value || isOwner.value) return 'Admin Summary'
+  if (isProfessor.value) return 'Review Summary'
+  return 'Status'
+})
+
+const sideSummaryDescription = computed(() => {
+  if (isAdmin.value || isOwner.value) return 'System-facing overview of contribution activity.'
+  if (isProfessor.value) return 'Review-focused contribution summary.'
+  return 'Current wallet and contract activity.'
+})
+
+const reviewQueueTitle = computed(() => {
+  if (isAdmin.value || isOwner.value) return 'Admin Review Queue'
+  return 'Professor Review Queue'
+})
+
+const reviewQueueDescription = computed(() => {
+  if (isAdmin.value || isOwner.value) return 'Pending contributions waiting for administrative review.'
+  return 'Pending contributions waiting for professor review.'
+})
+
+const listTitle = computed(() => {
+  if (isAdmin.value || isOwner.value) return 'Visible Contributions'
+  if (isProfessor.value) return 'Contribution Records'
+  return 'My Contributions'
+})
+
+const listDescription = computed(() => {
+  if (isAdmin.value || isOwner.value) return 'Contribution records currently available in your dashboard view.'
+  if (isProfessor.value) return 'View contribution status and student submission progress.'
+  return 'Manage your submissions, completion state, and NFT minting.'
+})
+
+function shortenAddress(value) {
+  if (!value) return '—'
+  return `${value.slice(0, 6)}...${value.slice(-4)}`
+}
 
 function formatDate(unixValue) {
-  if (!unixValue) return 'No date'
-  return new Date(unixValue * 1000).toLocaleDateString('en-US', {
+  const value = Number(unixValue)
+  if (!value) return '—'
+
+  return new Date(value * 1000).toLocaleDateString(undefined, {
     year: 'numeric',
-    month: 'long',
+    month: 'short',
     day: 'numeric'
   })
 }
 
-function isOverdue(contribution) {
-  if (contribution.completed || !contribution.dueDate) return false
-  const due = new Date(contribution.dueDate * 1000)
-  const dueStart = new Date(due.getFullYear(), due.getMonth(), due.getDate())
-  return dueStart < todayStart
+function statusClass(status) {
+  const numeric = Number(status)
+  if (numeric === 1) return 'approved'
+  if (numeric === 2) return 'rejected'
+  return 'pending'
 }
 
-function isDueToday(contribution) {
-  if (!contribution.dueDate) return false
-  const due = new Date(contribution.dueDate * 1000)
-  const dueStart = new Date(due.getFullYear(), due.getMonth(), due.getDate())
-  return dueStart.getTime() === todayStart.getTime()
+function canMint(item) {
+  return (
+    item.completed &&
+    Number(item.status) === 1 &&
+    !item.nftMinted &&
+    !item.deleted
+  )
 }
 
-function deadlineLabel(contribution) {
-  if (contribution.completed) return 'Completed'
-  if (isOverdue(contribution)) return 'Overdue'
-  if (isDueToday(contribution)) return 'Due Today'
-  return 'Upcoming'
+function canStudentManage(item) {
+  return userRole.value === 'student' && !item.deleted
 }
 
-function deadlineClass(contribution) {
-  if (contribution.completed) return 'deadline-complete'
-  if (isOverdue(contribution)) return 'deadline-overdue'
-  if (isDueToday(contribution)) return 'deadline-today'
-  return 'deadline-upcoming'
+function canStudentDelete(item) {
+  return userRole.value === 'student' && !item.deleted
 }
 
-onMounted(() => {
-  init()
+function canStudentMint(item) {
+  return userRole.value === 'student' && !item.deleted
+}
+
+function showReadOnlyNote(item) {
+  if (userRole.value === 'student') return false
+  return !item.deleted
+}
+
+function readOnlyNote(item) {
+  if (isAdmin.value || isOwner.value) {
+    if (Number(item.status) === 0) return 'Use the review queue above to approve or reject this contribution.'
+    return 'Admin view: status already finalized.'
+  }
+
+  if (isProfessor.value) {
+    if (Number(item.status) === 0) return 'Use the review queue above to approve or reject this contribution.'
+    return 'Professor view: status already finalized.'
+  }
+
+  return 'Read-only view.'
+}
+
+onMounted(async () => {
+  await init()
+  await loadContributions()
 })
 </script>
+
+<style scoped>
+.content-header-eyebrow {
+  margin: 0 0 8px;
+  color: #fbbf24;
+  font-size: 0.82rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.inline-note {
+  display: inline-flex;
+  align-items: center;
+  min-height: 42px;
+  padding: 0 12px;
+  border-radius: 12px;
+  background: rgba(148, 163, 184, 0.14);
+  color: #cbd5e1;
+  font-size: 0.9rem;
+}
+
+@media (max-width: 760px) {
+  .inline-note {
+    width: 100%;
+  }
+}
+</style>

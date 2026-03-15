@@ -1,528 +1,386 @@
 <template>
-  <div class="app-shell dashboard-shell">
-    <aside class="sidebar-shell">
-      <div class="sidebar-panel">
-        <div class="brand sidebar-brand">
-          <img src="/logo.png" class="brand-logo" alt="TaskBit Logo" />
-          <div>
-            <h1>{{ appBrand }}</h1>
-            <p class="brand-subtitle">Blockchain Academic Contribution Tracker</p>
-          </div>
+  <section class="page-layout">
+    <header class="hero-card">
+      <div>
+        <p class="content-header-eyebrow">Schedule</p>
+        <h2>{{ heroTitle }}</h2>
+        <p>
+          {{ heroDescription }}
+        </p>
+      </div>
+
+      <div class="hero-stats">
+        <div class="stat-card">
+          <span class="stat-label">Role</span>
+          <strong>{{ roleLabel }}</strong>
         </div>
-
-        <div class="sidebar-section-label">Navigation</div>
-        <nav class="page-nav sidebar-nav">
-          <RouterLink
-            to="/dashboard"
-            class="page-nav-link sidebar-nav-link"
-            active-class="page-nav-link-active"
-          >
-            <span class="nav-link-icon">🏠</span>
-            <span>Dashboard</span>
-          </RouterLink>
-
-          <RouterLink
-            to="/calendar"
-            class="page-nav-link sidebar-nav-link"
-            active-class="page-nav-link-active"
-          >
-            <span class="nav-link-icon">📅</span>
-            <span>Calendar</span>
-          </RouterLink>
-
-          <RouterLink
-            to="/contributions"
-            class="page-nav-link sidebar-nav-link"
-            active-class="page-nav-link-active"
-          >
-            <span class="nav-link-icon">📚</span>
-            <span>Academic Contributions</span>
-          </RouterLink>
-        </nav>
-
-        <div class="sidebar-section-label">Connection</div>
-        <div class="sidebar-status-stack">
-          <span class="network-badge sidebar-chip" :class="{ 'network-badge-warning': isWrongNetwork }">
-            {{ networkName }}
-          </span>
-
-          <span class="network-detail sidebar-chip">
-            {{ walletStatus }}
-          </span>
-
-          <span class="network-detail sidebar-chip">
-            {{ contractStatus }}
-          </span>
-
-          <div v-if="account" class="wallet-badge sidebar-wallet-badge">
-            <span class="wallet-dot" aria-hidden="true"></span>
-            {{ `${account.slice(0, 6)}...${account.slice(-4)}` }}
-          </div>
+        <div class="stat-card">
+          <span class="stat-label">This Month</span>
+          <strong>{{ currentMonthLabel }}</strong>
+        </div>
+        <div class="stat-card">
+          <span class="stat-label">Upcoming</span>
+          <strong>{{ upcomingContributions.length }}</strong>
+        </div>
+        <div class="stat-card">
+          <span class="stat-label">Today</span>
+          <strong>{{ todayItems.length }}</strong>
         </div>
       </div>
-    </aside>
+    </header>
 
-    <div class="dashboard-main">
-      <header class="content-header">
-        <div class="content-header-copy">
-          <p class="content-header-eyebrow">Workspace</p>
-          <h2>Calendar Overview</h2>
-          <p class="content-header-subtitle">
-            View all academic contributions by due date and manage upcoming deadlines from one place.
-          </p>
-        </div>
-
-        <div class="content-header-status">
-          <span class="network-badge" :class="{ 'network-badge-warning': isWrongNetwork }">
-            {{ networkName }}
-          </span>
-
-          <div v-if="account" class="wallet-badge header-wallet-badge">
-            <span class="wallet-dot" aria-hidden="true"></span>
-            {{ `${account.slice(0, 6)}...${account.slice(-4)}` }}
-          </div>
-        </div>
-      </header>
-
-      <main class="main-content">
-        <section class="toolbar-card">
-          <div class="toolbar-copy">
-            <h3>Calendar Actions</h3>
-            <p class="section-subtitle">
-              Add a new contribution or refresh your calendar data.
-            </p>
-          </div>
-
-          <div class="hero-actions">
-            <button class="submit-btn" @click="openCreateModal" :disabled="!account || isWrongNetwork || isBusy">
-              + Submit New Contribution
-            </button>
-
-            <button class="refresh-btn" @click="handleRefresh" :disabled="isBusy || isWrongNetwork">
-              {{ isRefreshing ? 'Refreshing...' : 'Refresh' }}
-            </button>
-          </div>
-        </section>
-
-        <section v-if="isWrongNetwork" class="network-warning-card">
-          <div class="network-warning-copy">
-            <h3>Wrong Network Detected</h3>
-            <p>
-              Your wallet is connected, but not on <strong>{{ networkName }}</strong>.
-              Switch MetaMask to {{ networkName }} to continue.
-            </p>
-          </div>
-
-          <div class="network-warning-actions">
-            <button
-              class="switch-network-btn"
-              @click="handleSwitchNetwork"
-              :disabled="isSwitchingNetwork || isBusy"
-            >
-              {{ isSwitchingNetwork ? `Switching to ${networkName}...` : `Switch to ${networkName}` }}
-            </button>
-          </div>
-        </section>
-
-        <section class="calendar-section">
-          <div class="section-header section-header-tight">
-            <div>
-              <h3>Task Calendar</h3>
-              <p class="section-subtitle">Browse contributions in a monthly calendar view.</p>
-            </div>
-          </div>
-
-          <div class="calendar-month-toolbar">
-            <div class="calendar-toolbar-left">
-              <button class="calendar-nav-btn" @click="goToPreviousMonth">← Previous</button>
-              <button class="calendar-nav-btn calendar-today-btn" @click="goToToday">Today</button>
-              <button class="calendar-nav-btn" @click="goToNextMonth">Next →</button>
-            </div>
-
-            <div class="calendar-month-title-block">
-              <h4 class="calendar-month-title">{{ currentMonthLabel }}</h4>
-              <p class="calendar-month-subtitle">
-                {{ currentMonthContributionCount }} contribution(s) this month
-              </p>
-            </div>
-          </div>
-
-          <div class="calendar-weekdays">
-            <div v-for="day in weekdayLabels" :key="day" class="calendar-weekday">
-              {{ day }}
-            </div>
-          </div>
-
-          <div class="calendar-month-grid">
-            <button
-              v-for="day in calendarDays"
-              :key="day.key"
-              type="button"
-              class="month-day-cell"
-              :class="{
-                'is-other-month': !day.isCurrentMonth,
-                'is-today': day.isToday,
-                'has-items': day.items.length > 0
-              }"
-              @click="openDayModal(day)"
-            >
-              <div class="month-day-top">
-                <span class="month-day-number">{{ day.dayNumber }}</span>
-                <span v-if="day.items.length" class="month-day-count">
-                  {{ day.items.length }}
-                </span>
-              </div>
-
-              <div class="month-day-items">
-                <template v-if="day.items.length">
-                  <div
-                    v-for="item in day.items.slice(0, 2)"
-                    :key="item.id"
-                    class="month-day-item"
-                    :class="deadlineClass(item)"
-                  >
-                    <div class="month-day-item-title">{{ item.title }}</div>
-                    <div class="month-day-item-meta">
-                      <span>{{ item.categoryLabel }}</span>
-                      <span>{{ item.completed ? 'Done' : 'Pending' }}</span>
-                    </div>
-                  </div>
-
-                  <div
-                    v-if="day.items.length > 2"
-                    class="month-day-more"
-                  >
-                    +{{ day.items.length - 2 }} more
-                  </div>
-                </template>
-
-                <div v-else class="month-day-empty-state">
-                  No tasks
-                </div>
-              </div>
-            </button>
-          </div>
-        </section>
-      </main>
-    </div>
-
-    <div v-if="showCreateModal" class="modal-backdrop" @click.self="closeCreateModal">
-      <div class="modal-card">
-        <div class="modal-header">
-          <div>
-            <h3>Submit a New Contribution</h3>
-            <p class="section-subtitle">
-              Add a contribution without leaving the calendar page.
-            </p>
-          </div>
-
-          <button class="modal-close-btn" @click="closeCreateModal">×</button>
-        </div>
-
-        <div class="contribution-form contribution-form-stacked">
-          <input
-            v-model="contributionForm.title"
-            type="text"
-            placeholder="Contribution title"
-            :disabled="!canEditContributions"
-          />
-
-          <select
-            v-model.number="contributionForm.category"
-            class="contribution-select"
-            :disabled="!canEditContributions"
-          >
-            <option
-              v-for="option in categoryOptions"
-              :key="option.value"
-              :value="option.value"
-            >
-              {{ option.label }}
-            </option>
-          </select>
-
-          <input
-            v-model="contributionForm.dueDate"
-            type="date"
-            class="contribution-date"
-            :min="todayString"
-            :disabled="!canEditContributions"
-          />
-
-          <textarea
-            v-model="contributionForm.description"
-            class="contribution-textarea"
-            rows="4"
-            placeholder="Describe the contribution"
-            :disabled="!canEditContributions"
-          ></textarea>
-
-          <div class="form-actions">
-            <button
-              class="submit-btn"
-              @click="submitFromModal"
-              :disabled="!canSubmitContribution"
-            >
-              {{ isSubmitting ? 'Submitting...' : 'Submit Contribution' }}
-            </button>
-
-            <button
-              class="refresh-btn secondary-btn"
-              @click="resetContributionForm"
-              :disabled="isBusy"
-            >
-              Clear Form
-            </button>
-          </div>
-        </div>
+    <section v-if="isWrongNetwork" class="info-card">
+      <h3>Wrong Network</h3>
+      <p>
+        Your wallet is connected to the wrong network. Switch to
+        {{ networkName }} before viewing contribution deadlines.
+      </p>
+      <div class="action-row">
+        <button class="warning-btn" @click="switchNetwork">Switch Network</button>
       </div>
-    </div>
+    </section>
 
-    <div v-if="showDayModal && selectedDay" class="modal-backdrop" @click.self="closeDayModal">
-      <div class="modal-card day-modal-card">
-        <div class="modal-header">
+    <section class="calendar-layout">
+      <article class="panel-card calendar-panel">
+        <div class="panel-header">
+          <div>
+            <h3>{{ calendarTitle }}</h3>
+            <p>{{ calendarDescription }}</p>
+          </div>
+
+          <div class="calendar-nav">
+            <button class="ghost-btn nav-btn" @click="goToPreviousMonth">
+              Prev
+            </button>
+            <button class="ghost-btn nav-btn" @click="goToToday">
+              Today
+            </button>
+            <button class="ghost-btn nav-btn" @click="goToNextMonth">
+              Next
+            </button>
+          </div>
+        </div>
+
+        <div class="month-heading">
+          <h4>{{ currentMonthLabel }}</h4>
+        </div>
+
+        <div class="weekday-row">
+          <span v-for="day in weekDays" :key="day">{{ day }}</span>
+        </div>
+
+        <div class="calendar-grid">
+          <button
+            v-for="day in calendarDays"
+            :key="day.key"
+            class="calendar-cell"
+            :class="{
+              muted: !day.inCurrentMonth,
+              today: day.isToday,
+              selected: day.isSelected,
+              'has-items': day.items.length > 0
+            }"
+            @click="selectDay(day.date)"
+          >
+            <div class="cell-top">
+              <span class="day-number">{{ day.dayNumber }}</span>
+              <span v-if="day.items.length" class="item-count">
+                {{ day.items.length }}
+              </span>
+            </div>
+
+            <div class="cell-items">
+              <div
+                v-for="item in day.items.slice(0, 2)"
+                :key="item.id"
+                class="cell-pill"
+                :class="statusClass(item.status)"
+              >
+                {{ item.title }}
+              </div>
+
+              <div v-if="day.items.length > 2" class="cell-more">
+                +{{ day.items.length - 2 }} more
+              </div>
+            </div>
+          </button>
+        </div>
+      </article>
+
+      <article class="panel-card sidebar-panel">
+        <div class="panel-header">
           <div>
             <h3>{{ selectedDayLabel }}</h3>
-            <p class="section-subtitle">
-              {{ selectedDay.items.length }}
-              {{ selectedDay.items.length === 1 ? 'contribution' : 'contributions' }}
-            </p>
+            <p>{{ selectedDescription }}</p>
           </div>
-
-          <button class="modal-close-btn" @click="closeDayModal">×</button>
+          <button class="ghost-btn" @click="loadContributions">Refresh</button>
         </div>
 
-        <div v-if="selectedDay.isToday" class="day-modal-chip-row">
-          <span class="selected-day-chip">Today</span>
+        <div class="sidebar-stats">
+          <div class="mini-stat">
+            <span>Selected Day</span>
+            <strong>{{ selectedDayItems.length }}</strong>
+          </div>
+          <div class="mini-stat">
+            <span>Approved</span>
+            <strong>{{ selectedApprovedCount }}</strong>
+          </div>
+          <div class="mini-stat">
+            <span>Pending</span>
+            <strong>{{ selectedPendingCount }}</strong>
+          </div>
+          <div class="mini-stat">
+            <span>Completed</span>
+            <strong>{{ selectedCompletedCount }}</strong>
+          </div>
         </div>
 
-        <div v-if="selectedDay.items.length === 0" class="selected-day-empty">
-          No contributions scheduled for this day.
+        <div v-if="isLoadingContributions" class="empty-state">
+          Loading calendar data...
         </div>
 
-        <div v-else class="selected-day-list">
-          <div
-            v-for="item in selectedDay.items"
+        <div v-else-if="!selectedDayItems.length" class="empty-state">
+          No contribution deadlines on this day.
+        </div>
+
+        <div v-else class="agenda-list">
+          <article
+            v-for="item in selectedDayItems"
             :key="item.id"
-            class="selected-day-item"
+            class="agenda-card"
           >
-            <div class="selected-day-item-top">
-              <h5>{{ item.title }}</h5>
-              <span
-                class="mini-status-badge"
-                :class="item.completed ? 'status-complete' : 'status-pending'"
-              >
-                {{ item.completed ? 'Completed' : 'Pending' }}
-              </span>
+            <div class="agenda-top">
+              <div>
+                <h4>{{ item.title }}</h4>
+                <p class="contribution-meta">
+                  #{{ item.id }} · {{ item.categoryLabel }}
+                </p>
+              </div>
+
+              <div class="badge-group">
+                <span class="badge category">{{ item.categoryLabel }}</span>
+                <span class="badge" :class="statusClass(item.status)">
+                  {{ item.statusLabel }}
+                </span>
+              </div>
             </div>
 
-            <div class="selected-day-meta">
-              <span class="category-badge">{{ item.categoryLabel }}</span>
-              <span class="deadline-badge" :class="deadlineClass(item)">
-                {{ deadlineLabel(item) }}
-              </span>
+            <p class="description">{{ item.description }}</p>
+
+            <div class="details-grid">
+              <div>
+                <span class="detail-label">Due</span>
+                <strong>{{ formatDate(item.dueDate) }}</strong>
+              </div>
+              <div>
+                <span class="detail-label">Points</span>
+                <strong>{{ item.pointsAwarded }}</strong>
+              </div>
+              <div>
+                <span class="detail-label">Completed</span>
+                <strong>{{ item.completed ? 'Yes' : 'No' }}</strong>
+              </div>
+              <div>
+                <span class="detail-label">NFT</span>
+                <strong>{{ item.nftMinted ? 'Minted' : 'Not Minted' }}</strong>
+              </div>
             </div>
 
-            <p class="selected-day-description">
-              {{ item.description || 'No description provided.' }}
-            </p>
-          </div>
+            <div
+              v-if="item.student && (isProfessor || isAdmin || isOwner)"
+              class="review-box"
+            >
+              <span>Student:</span>
+              <strong>{{ shortenAddress(item.student) }}</strong>
+            </div>
+          </article>
+        </div>
+      </article>
+    </section>
+
+    <section class="panel-card">
+      <div class="panel-header">
+        <div>
+          <h3>{{ upcomingTitle }}</h3>
+          <p>{{ upcomingDescription }}</p>
         </div>
       </div>
-    </div>
 
-    <div
-      v-if="txStatus && txStatus !== 'No transaction yet'"
-      class="tx-toast"
-      :class="toastClass"
-    >
-      <div class="toast-content">
-        <span class="toast-message">{{ txStatus }}</span>
-
-        <a
-          v-if="latestTxUrl"
-          class="toast-link"
-          :href="latestTxUrl"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          View on Etherscan
-        </a>
-
-        <span v-if="latestTxHash" class="toast-hash">
-          {{ shortTxHash }}
-        </span>
+      <div v-if="!upcomingContributions.length" class="empty-state">
+        No upcoming contribution deadlines found.
       </div>
 
-      <button class="toast-close" @click="resetTxStatus">x</button>
-    </div>
-  </div>
+      <div v-else class="contribution-list">
+        <article
+          v-for="item in upcomingContributions.slice(0, 6)"
+          :key="item.id"
+          class="contribution-card"
+        >
+          <div class="contribution-top">
+            <div>
+              <h4>{{ item.title }}</h4>
+              <p class="contribution-meta">
+                #{{ item.id }} · {{ item.categoryLabel }}
+              </p>
+            </div>
+
+            <div class="badge-group">
+              <span class="badge category">{{ item.categoryLabel }}</span>
+              <span class="badge" :class="statusClass(item.status)">
+                {{ item.statusLabel }}
+              </span>
+            </div>
+          </div>
+
+          <div class="details-grid">
+            <div>
+              <span class="detail-label">Due Date</span>
+              <strong>{{ formatDate(item.dueDate) }}</strong>
+            </div>
+            <div>
+              <span class="detail-label">Completed</span>
+              <strong>{{ item.completed ? 'Yes' : 'No' }}</strong>
+            </div>
+            <div>
+              <span class="detail-label">Points</span>
+              <strong>{{ item.pointsAwarded }}</strong>
+            </div>
+            <div>
+              <span class="detail-label">NFT</span>
+              <strong>{{ item.nftMinted ? 'Minted' : 'Not Minted' }}</strong>
+            </div>
+          </div>
+        </article>
+      </div>
+    </section>
+  </section>
 </template>
 
 <script setup>
 import { computed, onMounted, ref } from 'vue'
-import { RouterLink } from 'vue-router'
 import { useAuctusStore } from '../composables/useAuctusStore'
 
+const store = useAuctusStore()
+
 const {
-  account,
-  walletStatus,
-  contractStatus,
-  txStatus,
-  latestTxHash,
-  latestTxUrl,
-  contributionForm,
-  contributions,
-  contributionCount,
-  categoryOptions,
+  visibleContributions,
+  roleLabel,
+  isProfessor,
+  isAdmin,
+  isOwner,
   isWrongNetwork,
   isLoadingContributions,
-  addContribution,
-  resetContributionForm,
-  resetTxStatus,
-  init,
-  loadContributions,
   switchNetwork,
-  appBrand,
+  loadContributions,
+  init,
   networkName
-} = useAuctusStore()
+} = store
 
-const isRefreshing = ref(false)
-const isSwitchingNetwork = ref(false)
-const showCreateModal = ref(false)
-const showDayModal = ref(false)
-const currentMonthDate = ref(startOfMonth(new Date()))
-const selectedDayKey = ref(formatDateKey(new Date()))
-
-const weekdayLabels = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+const weekDays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 
 const today = new Date()
-const todayStart = startOfDay(today)
-const todayString = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(
-  today.getDate()
-).padStart(2, '0')}`
+const currentMonth = ref(new Date(today.getFullYear(), today.getMonth(), 1))
+const selectedDate = ref(startOfDay(today))
 
-const loweredTxStatus = computed(() => txStatus.value.toLowerCase())
-const isSubmitting = computed(() => loweredTxStatus.value.includes('sending'))
-
-const isBusy = computed(() => {
-  return (
-    isLoadingContributions.value ||
-    isSubmitting.value ||
-    isRefreshing.value ||
-    isSwitchingNetwork.value
-  )
+const userMode = computed(() => {
+  if (isAdmin.value || isOwner.value) return 'admin'
+  if (isProfessor.value) return 'professor'
+  return 'student'
 })
 
-const completedCount = computed(() =>
-  contributions.value.filter((item) => item.completed).length
-)
-
-const pendingCount = computed(() =>
-  contributions.value.filter((item) => !item.completed).length
-)
-
-const overdueCount = computed(() =>
-  contributions.value.filter((item) => isOverdue(item)).length
-)
-
-const canEditContributions = computed(() => {
-  return Boolean(account.value) && !isWrongNetwork.value && !isBusy.value
+const heroTitle = computed(() => {
+  if (userMode.value === 'admin') return 'Admin Calendar'
+  if (userMode.value === 'professor') return 'Professor Calendar'
+  return 'Student Calendar'
 })
 
-const canSubmitContribution = computed(() => {
-  return (
-    canEditContributions.value &&
-    Boolean(contributionForm.value.title?.trim()) &&
-    Boolean(contributionForm.value.description?.trim()) &&
-    Boolean(contributionForm.value.dueDate)
-  )
-})
-
-const shortTxHash = computed(() => {
-  if (!latestTxHash.value) return ''
-  return `${latestTxHash.value.slice(0, 10)}...${latestTxHash.value.slice(-8)}`
-})
-
-const toastClass = computed(() => ({
-  success:
-    !loweredTxStatus.value.includes('sending') &&
-    !loweredTxStatus.value.includes('rejected') &&
-    !loweredTxStatus.value.includes('wrong network') &&
-    !loweredTxStatus.value.includes('failed') &&
-    !loweredTxStatus.value.includes('reverted') &&
-    !loweredTxStatus.value.includes('insufficient') &&
-    !loweredTxStatus.value.includes('connect wallet'),
-  pending: loweredTxStatus.value.includes('sending'),
-  error:
-    loweredTxStatus.value.includes('rejected') ||
-    loweredTxStatus.value.includes('wrong network') ||
-    loweredTxStatus.value.includes('failed') ||
-    loweredTxStatus.value.includes('reverted') ||
-    loweredTxStatus.value.includes('insufficient') ||
-    loweredTxStatus.value.includes('connect wallet')
-}))
-
-const contributionsByDate = computed(() => {
-  const grouped = {}
-
-  for (const item of contributions.value) {
-    if (!item.dueDate) continue
-    const date = new Date(item.dueDate * 1000)
-    const key = formatDateKey(date)
-
-    if (!grouped[key]) grouped[key] = []
-    grouped[key].push(item)
+const heroDescription = computed(() => {
+  if (userMode.value === 'admin') {
+    return 'Monitor deadline activity, review upcoming records, and track academic workflow timing across the dashboard.'
   }
+  if (userMode.value === 'professor') {
+    return 'Track due contributions, review schedules, and monitor upcoming student work.'
+  }
+  return 'Track contribution deadlines, review your upcoming work, and manage your academic schedule.'
+})
 
-  Object.values(grouped).forEach((items) => {
-    items.sort((a, b) => Number(a.completed) - Number(b.completed))
-  })
+const calendarTitle = computed(() => {
+  if (userMode.value === 'admin') return 'System Deadline Calendar'
+  if (userMode.value === 'professor') return 'Review Calendar'
+  return 'Monthly Calendar'
+})
 
-  return grouped
+const calendarDescription = computed(() => {
+  if (userMode.value === 'admin') return 'Contribution due dates shown in an admin monitoring view.'
+  if (userMode.value === 'professor') return 'Contribution due dates shown for professor review timing.'
+  return 'Contribution due dates are shown on their scheduled day.'
+})
+
+const selectedDescription = computed(() => {
+  if (userMode.value === 'admin') return 'Contribution records scheduled on the selected date.'
+  if (userMode.value === 'professor') return 'Student work due on the selected date.'
+  return 'Your contribution records due on the selected date.'
+})
+
+const upcomingTitle = computed(() => {
+  if (userMode.value === 'admin') return 'Upcoming Deadline Activity'
+  if (userMode.value === 'professor') return 'Upcoming Review Items'
+  return 'Upcoming Contributions'
+})
+
+const upcomingDescription = computed(() => {
+  if (userMode.value === 'admin') return 'Nearest due dates from today onward in the current dashboard view.'
+  if (userMode.value === 'professor') return 'Upcoming due work that may require review.'
+  return 'Nearest due dates from today onward.'
 })
 
 const currentMonthLabel = computed(() =>
-  currentMonthDate.value.toLocaleDateString('en-US', {
-    month: 'long',
-    year: 'numeric'
+  currentMonth.value.toLocaleDateString(undefined, {
+    year: 'numeric',
+    month: 'long'
   })
 )
 
-const currentMonthContributionCount = computed(() => {
-  const year = currentMonthDate.value.getFullYear()
-  const month = currentMonthDate.value.getMonth()
-
-  return contributions.value.filter((item) => {
-    if (!item.dueDate) return false
-    const due = new Date(item.dueDate * 1000)
-    return due.getFullYear() === year && due.getMonth() === month
-  }).length
-})
+const selectedDayLabel = computed(() =>
+  selectedDate.value.toLocaleDateString(undefined, {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric'
+  })
+)
 
 const calendarDays = computed(() => {
-  const monthStart = startOfMonth(currentMonthDate.value)
-  const monthEnd = endOfMonth(currentMonthDate.value)
+  const monthStart = new Date(
+    currentMonth.value.getFullYear(),
+    currentMonth.value.getMonth(),
+    1
+  )
+  const monthEnd = new Date(
+    currentMonth.value.getFullYear(),
+    currentMonth.value.getMonth() + 1,
+    0
+  )
 
   const gridStart = new Date(monthStart)
-  gridStart.setDate(gridStart.getDate() - gridStart.getDay())
+  gridStart.setDate(monthStart.getDate() - monthStart.getDay())
 
   const gridEnd = new Date(monthEnd)
-  gridEnd.setDate(gridEnd.getDate() + (6 - gridEnd.getDay()))
+  gridEnd.setDate(monthEnd.getDate() + (6 - monthEnd.getDay()))
 
   const days = []
   const cursor = new Date(gridStart)
 
   while (cursor <= gridEnd) {
-    const key = formatDateKey(cursor)
-    const items = contributionsByDate.value[key] || []
+    const dayDate = startOfDay(cursor)
+    const items = getItemsForDate(dayDate)
 
     days.push({
-      key,
-      date: new Date(cursor),
-      dayNumber: cursor.getDate(),
-      isCurrentMonth: cursor.getMonth() === currentMonthDate.value.getMonth(),
-      isToday: formatDateKey(cursor) === formatDateKey(today),
+      key: dayDate.toISOString(),
+      date: new Date(dayDate),
+      dayNumber: dayDate.getDate(),
+      inCurrentMonth: dayDate.getMonth() === currentMonth.value.getMonth(),
+      isToday: isSameDate(dayDate, today),
+      isSelected: isSameDate(dayDate, selectedDate.value),
       items
     })
 
@@ -532,127 +390,104 @@ const calendarDays = computed(() => {
   return days
 })
 
-const selectedDay = computed(() => {
-  return calendarDays.value.find((day) => day.key === selectedDayKey.value) || null
+const selectedDayItems = computed(() =>
+  getItemsForDate(selectedDate.value).sort((a, b) => a.dueDate - b.dueDate)
+)
+
+const todayItems = computed(() => getItemsForDate(today))
+
+const upcomingContributions = computed(() => {
+  const now = startOfDay(today).getTime() / 1000
+
+  return [...visibleContributions.value]
+    .filter((item) => Number(item.dueDate) >= now)
+    .sort((a, b) => Number(a.dueDate) - Number(b.dueDate))
 })
 
-const selectedDayLabel = computed(() => {
-  if (!selectedDay.value) return ''
-  return selectedDay.value.date.toLocaleDateString('en-US', {
-    weekday: 'long',
-    month: 'long',
-    day: 'numeric',
-    year: 'numeric'
-  })
-})
+const selectedApprovedCount = computed(
+  () => selectedDayItems.value.filter((item) => Number(item.status) === 1).length
+)
+
+const selectedPendingCount = computed(
+  () => selectedDayItems.value.filter((item) => Number(item.status) === 0).length
+)
+
+const selectedCompletedCount = computed(
+  () => selectedDayItems.value.filter((item) => item.completed).length
+)
 
 function startOfDay(date) {
   return new Date(date.getFullYear(), date.getMonth(), date.getDate())
 }
 
-function startOfMonth(date) {
-  return new Date(date.getFullYear(), date.getMonth(), 1)
+function isSameDate(a, b) {
+  return (
+    a.getFullYear() === b.getFullYear() &&
+    a.getMonth() === b.getMonth() &&
+    a.getDate() === b.getDate()
+  )
 }
 
-function endOfMonth(date) {
-  return new Date(date.getFullYear(), date.getMonth() + 1, 0)
+function fromUnixToDate(unixValue) {
+  const value = Number(unixValue)
+  if (!value) return null
+  return new Date(value * 1000)
 }
 
-function formatDateKey(date) {
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(
-    date.getDate()
-  ).padStart(2, '0')}`
+function getItemsForDate(date) {
+  return visibleContributions.value.filter((item) => {
+    const due = fromUnixToDate(item.dueDate)
+    if (!due) return false
+    return isSameDate(startOfDay(due), startOfDay(date))
+  })
 }
 
-function isOverdue(contribution) {
-  if (contribution.completed || !contribution.dueDate) return false
-  const due = new Date(contribution.dueDate * 1000)
-  const dueStart = startOfDay(due)
-  return dueStart < todayStart
-}
-
-function isDueToday(contribution) {
-  if (!contribution.dueDate) return false
-  const due = new Date(contribution.dueDate * 1000)
-  const dueStart = startOfDay(due)
-  return dueStart.getTime() === todayStart.getTime()
-}
-
-function deadlineLabel(contribution) {
-  if (contribution.completed) return 'Completed'
-  if (isOverdue(contribution)) return 'Overdue'
-  if (isDueToday(contribution)) return 'Due Today'
-  return 'Upcoming'
-}
-
-function deadlineClass(contribution) {
-  if (contribution.completed) return 'deadline-complete'
-  if (isOverdue(contribution)) return 'deadline-overdue'
-  if (isDueToday(contribution)) return 'deadline-today'
-  return 'deadline-upcoming'
+function selectDay(date) {
+  selectedDate.value = startOfDay(date)
 }
 
 function goToPreviousMonth() {
-  currentMonthDate.value = new Date(
-    currentMonthDate.value.getFullYear(),
-    currentMonthDate.value.getMonth() - 1,
+  currentMonth.value = new Date(
+    currentMonth.value.getFullYear(),
+    currentMonth.value.getMonth() - 1,
     1
   )
 }
 
 function goToNextMonth() {
-  currentMonthDate.value = new Date(
-    currentMonthDate.value.getFullYear(),
-    currentMonthDate.value.getMonth() + 1,
+  currentMonth.value = new Date(
+    currentMonth.value.getFullYear(),
+    currentMonth.value.getMonth() + 1,
     1
   )
 }
 
 function goToToday() {
-  currentMonthDate.value = startOfMonth(new Date())
-  selectedDayKey.value = formatDateKey(new Date())
+  currentMonth.value = new Date(today.getFullYear(), today.getMonth(), 1)
+  selectedDate.value = startOfDay(today)
 }
 
-function openCreateModal() {
-  showCreateModal.value = true
+function formatDate(unixValue) {
+  const value = Number(unixValue)
+  if (!value) return '—'
+
+  return new Date(value * 1000).toLocaleDateString(undefined, {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric'
+  })
 }
 
-function closeCreateModal() {
-  showCreateModal.value = false
+function shortenAddress(value) {
+  if (!value) return '—'
+  return `${value.slice(0, 6)}...${value.slice(-4)}`
 }
 
-function openDayModal(day) {
-  selectedDayKey.value = day.key
-  showDayModal.value = true
-}
-
-function closeDayModal() {
-  showDayModal.value = false
-}
-
-async function handleRefresh() {
-  try {
-    isRefreshing.value = true
-    await loadContributions()
-  } finally {
-    isRefreshing.value = false
-  }
-}
-
-async function handleSwitchNetwork() {
-  try {
-    isSwitchingNetwork.value = true
-    await switchNetwork()
-  } finally {
-    isSwitchingNetwork.value = false
-  }
-}
-
-async function submitFromModal() {
-  await addContribution()
-  if (!loweredTxStatus.value.includes('failed') && !loweredTxStatus.value.includes('rejected')) {
-    closeCreateModal()
-  }
+function statusClass(status) {
+  const numeric = Number(status)
+  if (numeric === 1) return 'approved'
+  if (numeric === 2) return 'rejected'
+  return 'pending'
 }
 
 onMounted(async () => {
@@ -660,3 +495,238 @@ onMounted(async () => {
   await loadContributions()
 })
 </script>
+
+<style scoped>
+.content-header-eyebrow {
+  margin: 0 0 8px;
+  color: #fbbf24;
+  font-size: 0.82rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.calendar-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.6fr) minmax(320px, 0.9fr);
+  gap: 20px;
+}
+
+.calendar-panel,
+.sidebar-panel {
+  min-height: 100%;
+}
+
+.calendar-nav {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.nav-btn {
+  min-width: 84px;
+}
+
+.month-heading {
+  margin-bottom: 14px;
+}
+
+.month-heading h4 {
+  margin: 0;
+  font-size: 1.05rem;
+}
+
+.weekday-row {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.weekday-row span {
+  text-align: center;
+  color: #94a3b8;
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+.calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.calendar-cell {
+  min-height: 116px;
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.035);
+  padding: 10px;
+  text-align: left;
+  color: inherit;
+  cursor: pointer;
+  transition: transform 0.16s ease, border-color 0.16s ease, background 0.16s ease;
+}
+
+.calendar-cell:hover {
+  transform: translateY(-1px);
+  border-color: rgba(251, 191, 36, 0.3);
+}
+
+.calendar-cell.muted {
+  opacity: 0.45;
+}
+
+.calendar-cell.today {
+  border-color: rgba(251, 191, 36, 0.55);
+  box-shadow: inset 0 0 0 1px rgba(251, 191, 36, 0.18);
+}
+
+.calendar-cell.selected {
+  background: rgba(251, 191, 36, 0.08);
+  border-color: rgba(251, 191, 36, 0.45);
+}
+
+.calendar-cell.has-items .day-number {
+  color: #fbbf24;
+}
+
+.cell-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.day-number {
+  font-weight: 800;
+  font-size: 0.95rem;
+}
+
+.item-count {
+  min-width: 22px;
+  height: 22px;
+  border-radius: 999px;
+  display: inline-grid;
+  place-items: center;
+  background: rgba(59, 130, 246, 0.18);
+  color: #bfdbfe;
+  font-size: 0.75rem;
+  font-weight: 800;
+}
+
+.cell-items {
+  display: grid;
+  gap: 6px;
+}
+
+.cell-pill,
+.cell-more {
+  font-size: 0.72rem;
+  line-height: 1.2;
+  border-radius: 999px;
+  padding: 6px 8px;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.cell-pill.pending {
+  background: rgba(245, 158, 11, 0.18);
+  color: #fde68a;
+}
+
+.cell-pill.approved {
+  background: rgba(34, 197, 94, 0.16);
+  color: #bbf7d0;
+}
+
+.cell-pill.rejected {
+  background: rgba(239, 68, 68, 0.16);
+  color: #fecaca;
+}
+
+.cell-more {
+  background: rgba(148, 163, 184, 0.14);
+  color: #cbd5e1;
+}
+
+.sidebar-stats {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.agenda-list {
+  display: grid;
+  gap: 14px;
+}
+
+.agenda-card {
+  border-radius: 18px;
+  padding: 16px;
+  background: rgba(255, 255, 255, 0.035);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.agenda-top {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: flex-start;
+  flex-wrap: wrap;
+}
+
+.agenda-top h4 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+@media (max-width: 1080px) {
+  .calendar-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 760px) {
+  .calendar-nav {
+    width: 100%;
+  }
+
+  .calendar-nav > * {
+    flex: 1 1 0;
+  }
+
+  .weekday-row,
+  .calendar-grid {
+    gap: 6px;
+  }
+
+  .calendar-cell {
+    min-height: 92px;
+    padding: 8px;
+  }
+
+  .sidebar-stats {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 560px) {
+  .weekday-row span {
+    font-size: 0.72rem;
+  }
+
+  .day-number {
+    font-size: 0.86rem;
+  }
+
+  .cell-pill,
+  .cell-more {
+    font-size: 0.66rem;
+    padding: 5px 6px;
+  }
+}
+</style>

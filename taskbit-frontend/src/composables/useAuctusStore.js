@@ -13,13 +13,23 @@ import {
   getTaskBitContract,
   fetchMyContributions,
   fetchMyContributionCount,
+  fetchMyReputation,
+  checkReviewerRole,
   createContribution,
   updateContributionStatus,
   deleteContributionById,
+  approveContributionById,
+  rejectContributionById,
+  mintContributionNft,
+  setProfessorRole,
+  setAdminRole,
   getReadableBlockchainError,
   formatTxSummary
 } from '../services/taskbit'
-import { CONTRIBUTION_CATEGORIES } from '../contracts/taskbit'
+import {
+  CONTRIBUTION_CATEGORIES,
+  CONTRIBUTION_STATUSES
+} from '../contracts/taskbit'
 
 let instance = null
 
@@ -44,6 +54,12 @@ export function useAuctusStore() {
 
   const contributions = ref([])
   const contributionCount = ref(0)
+  const reputation = ref(0)
+
+  const isReviewer = ref(false)
+  const isProfessor = ref(false)
+  const isAdmin = ref(false)
+  const isOwner = ref(false)
 
   const isConnecting = ref(false)
   const isLoadingContributions = ref(false)
@@ -68,6 +84,56 @@ export function useAuctusStore() {
       value
     }))
   )
+
+  const statusOptions = computed(() =>
+    CONTRIBUTION_STATUSES.map((label, value) => ({
+      label,
+      value
+    }))
+  )
+
+  const visibleContributions = computed(() =>
+    contributions.value.filter((item) => !item.deleted)
+  )
+
+  const pendingContributions = computed(() =>
+    visibleContributions.value.filter((item) => Number(item.status) === 0)
+  )
+
+  const approvedContributions = computed(() =>
+    visibleContributions.value.filter((item) => Number(item.status) === 1)
+  )
+
+  const rejectedContributions = computed(() =>
+    visibleContributions.value.filter((item) => Number(item.status) === 2)
+  )
+
+  const completedContributions = computed(() =>
+    visibleContributions.value.filter((item) => item.completed)
+  )
+
+  const userRole = computed(() => {
+    if (!isConnected.value) return 'guest'
+    if (isOwner.value || isAdmin.value) return 'admin'
+    if (isProfessor.value) return 'professor'
+    if (isReviewer.value) return 'reviewer'
+    return 'student'
+  })
+
+  const roleLabel = computed(() => {
+    switch (userRole.value) {
+      case 'admin':
+        return 'Admin'
+      case 'professor':
+        return 'Professor'
+      case 'reviewer':
+        return 'Reviewer'
+      case 'student':
+        return 'Student'
+      default:
+        return 'Guest'
+    }
+  })
 
   function getTodayString() {
     const now = new Date()
@@ -95,6 +161,13 @@ export function useAuctusStore() {
     latestTxUrl.value = ''
   }
 
+  function resetRoles() {
+    isReviewer.value = false
+    isProfessor.value = false
+    isAdmin.value = false
+    isOwner.value = false
+  }
+
   function clearSession(message = 'Wallet disconnected') {
     account.value = ''
     provider = null
@@ -102,6 +175,8 @@ export function useAuctusStore() {
     contract = null
     contributions.value = []
     contributionCount.value = 0
+    reputation.value = 0
+    resetRoles()
     walletStatus.value = message
     contractStatus.value = `${CONTRACT_BRAND} contract not connected`
     clearLatestTransaction()
@@ -130,6 +205,8 @@ export function useAuctusStore() {
         contract = null
         contributions.value = []
         contributionCount.value = 0
+        reputation.value = 0
+        resetRoles()
         walletStatus.value = `Wrong network. Please switch MetaMask to ${APP_NETWORK.name}.`
         contractStatus.value = `${CONTRACT_BRAND} contract unavailable on current network`
         return false
@@ -147,23 +224,53 @@ export function useAuctusStore() {
     }
   }
 
+  async function loadRoleState() {
+    if (!contract || !account.value) {
+      resetRoles()
+      return
+    }
+
+    try {
+      const [reviewerRole, adminRole, professorRole, ownerAddress] = await Promise.all([
+        checkReviewerRole(contract, account.value),
+        contract.admins(account.value),
+        contract.professors(account.value),
+        contract.owner()
+      ])
+
+      isReviewer.value = Boolean(reviewerRole)
+      isAdmin.value = Boolean(adminRole)
+      isProfessor.value = Boolean(professorRole)
+      isOwner.value = String(ownerAddress || '').toLowerCase() === account.value.toLowerCase()
+    } catch (error) {
+      console.error('Failed to load role state:', error)
+      resetRoles()
+    }
+  }
+
   async function loadContributions() {
     if (!contract) {
       contributions.value = []
       contributionCount.value = 0
+      reputation.value = 0
+      resetRoles()
       return
     }
 
     isLoadingContributions.value = true
 
     try {
-      const [contributionList, count] = await Promise.all([
+      const [contributionList, count, reputationValue] = await Promise.all([
         fetchMyContributions(contract),
-        fetchMyContributionCount(contract)
+        fetchMyContributionCount(contract),
+        fetchMyReputation(contract)
       ])
 
       contributions.value = contributionList
       contributionCount.value = count
+      reputation.value = Number(reputationValue || 0)
+
+      await loadRoleState()
     } catch (error) {
       console.error('Failed to load contributions:', error)
       txStatus.value = 'Failed to load contributions.'
@@ -267,7 +374,7 @@ export function useAuctusStore() {
 
       const txResult = await createContribution(contract, {
         title,
-        category: contributionForm.value.category,
+        category: Number(contributionForm.value.category),
         description,
         dueDate
       })
@@ -317,6 +424,147 @@ export function useAuctusStore() {
     } catch (error) {
       console.error('Delete contribution failed:', error)
       txStatus.value = getReadableBlockchainError(error)
+    }
+  }
+
+  async function approveContribution(contributionId, points = 0) {
+    if (!contract) {
+      txStatus.value = 'Connect wallet first.'
+      return
+    }
+
+    try {
+      clearLatestTransaction()
+      txStatus.value = 'Sending contribution approval transaction...'
+      const txResult = await approveContributionById(contract, contributionId, points)
+      setLatestTransaction(txResult)
+      txStatus.value = formatTxSummary('Contribution approved', txResult)
+      await loadContributions()
+    } catch (error) {
+      console.error('Approve contribution failed:', error)
+      txStatus.value = getReadableBlockchainError(error)
+    }
+  }
+
+  async function rejectContribution(contributionId) {
+    if (!contract) {
+      txStatus.value = 'Connect wallet first.'
+      return
+    }
+
+    try {
+      clearLatestTransaction()
+      txStatus.value = 'Sending contribution rejection transaction...'
+      const txResult = await rejectContributionById(contract, contributionId)
+      setLatestTransaction(txResult)
+      txStatus.value = formatTxSummary('Contribution rejected', txResult)
+      await loadContributions()
+    } catch (error) {
+      console.error('Reject contribution failed:', error)
+      txStatus.value = getReadableBlockchainError(error)
+    }
+  }
+
+  async function mintNft(contributionId) {
+    if (!contract) {
+      txStatus.value = 'Connect wallet first.'
+      return
+    }
+
+    try {
+      clearLatestTransaction()
+      txStatus.value = 'Sending NFT mint transaction...'
+      const txResult = await mintContributionNft(contract, contributionId)
+      setLatestTransaction(txResult)
+      txStatus.value = formatTxSummary('NFT minted', txResult)
+      await loadContributions()
+    } catch (error) {
+      console.error('Mint NFT failed:', error)
+      txStatus.value = getReadableBlockchainError(error)
+    }
+  }
+
+  async function assignProfessor(targetAccount) {
+    if (!contract) {
+      txStatus.value = 'Connect wallet first.'
+      return false
+    }
+
+    try {
+      clearLatestTransaction()
+      txStatus.value = 'Sending professor role transaction...'
+      const txResult = await setProfessorRole(contract, targetAccount, true)
+      setLatestTransaction(txResult)
+      txStatus.value = formatTxSummary('Professor role granted', txResult)
+      await loadContributions()
+      return true
+    } catch (error) {
+      console.error('Assign professor failed:', error)
+      txStatus.value = getReadableBlockchainError(error)
+      return false
+    }
+  }
+
+  async function removeProfessor(targetAccount) {
+    if (!contract) {
+      txStatus.value = 'Connect wallet first.'
+      return false
+    }
+
+    try {
+      clearLatestTransaction()
+      txStatus.value = 'Sending professor role removal transaction...'
+      const txResult = await setProfessorRole(contract, targetAccount, false)
+      setLatestTransaction(txResult)
+      txStatus.value = formatTxSummary('Professor role removed', txResult)
+      await loadContributions()
+      return true
+    } catch (error) {
+      console.error('Remove professor failed:', error)
+      txStatus.value = getReadableBlockchainError(error)
+      return false
+    }
+  }
+
+  async function assignAdmin(targetAccount) {
+    if (!contract) {
+      txStatus.value = 'Connect wallet first.'
+      return false
+    }
+
+    try {
+      clearLatestTransaction()
+      txStatus.value = 'Sending admin role transaction...'
+      const txResult = await setAdminRole(contract, targetAccount, true)
+      setLatestTransaction(txResult)
+      txStatus.value = formatTxSummary('Admin role granted', txResult)
+      await loadContributions()
+      return true
+    } catch (error) {
+      console.error('Assign admin failed:', error)
+      txStatus.value = getReadableBlockchainError(error)
+      return false
+    }
+  }
+
+  async function removeAdmin(targetAccount) {
+    if (!contract) {
+      txStatus.value = 'Connect wallet first.'
+      return false
+    }
+
+    try {
+      clearLatestTransaction()
+      txStatus.value = 'Sending admin role removal transaction...'
+      const txResult = await setAdminRole(contract, targetAccount, false)
+      setLatestTransaction(txResult)
+      txStatus.value = formatTxSummary('Admin role removed', txResult)
+      await loadContributions()
+      return true
+    } catch (error) {
+      console.error('Remove admin failed:', error)
+      txStatus.value = getReadableBlockchainError(error)
+      return false
     }
   }
 
@@ -376,8 +624,21 @@ export function useAuctusStore() {
     latestTxUrl,
     contributionForm,
     contributions,
+    visibleContributions,
+    pendingContributions,
+    approvedContributions,
+    rejectedContributions,
+    completedContributions,
     contributionCount,
+    reputation,
+    isReviewer,
+    isProfessor,
+    isAdmin,
+    isOwner,
+    userRole,
+    roleLabel,
     categoryOptions,
+    statusOptions,
     isConnected,
     isWrongNetwork,
     isConnecting,
@@ -389,6 +650,13 @@ export function useAuctusStore() {
     addContribution,
     toggleContribution,
     removeContribution,
+    approveContribution,
+    rejectContribution,
+    mintNft,
+    assignProfessor,
+    removeProfessor,
+    assignAdmin,
+    removeAdmin,
     resetContributionForm,
     resetTxStatus,
     init,

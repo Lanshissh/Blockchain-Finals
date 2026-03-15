@@ -46,7 +46,6 @@ export async function switchToAppNetwork() {
       params: [{ chainId: APP_NETWORK.chainHex }]
     })
   } catch (error) {
-    // 4902 means chain not added to wallet yet
     if (error?.code === 4902) {
       await ethereum.request({
         method: 'wallet_addEthereumChain',
@@ -91,18 +90,23 @@ export async function getWalletSession({ requestAccess = false } = {}) {
   }
 
   const signer = await provider.getSigner()
+  const account = String(accounts[0] || '')
 
   return {
     provider,
     signer,
-    account: accounts[0],
+    account,
     network,
     isCorrectNetwork,
-    isConnected: true
+    isConnected: Boolean(account)
   }
 }
 
 export function onAccountsChanged(handler) {
+  if (!hasEthereum()) {
+    return () => {}
+  }
+
   const ethereum = getEthereum()
   ethereum.on('accountsChanged', handler)
 
@@ -112,6 +116,10 @@ export function onAccountsChanged(handler) {
 }
 
 export function onChainChanged(handler) {
+  if (!hasEthereum()) {
+    return () => {}
+  }
+
   const ethereum = getEthereum()
   ethereum.on('chainChanged', handler)
 
