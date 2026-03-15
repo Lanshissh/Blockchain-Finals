@@ -1,5 +1,4 @@
-export const TASKBIT_ADDRESS =
-  import.meta.env.VITE_TASKBIT_ADDRESS || '0x08F5E4480eeD60bC0aF45831afE7FeFe14211485'
+export const TASKBIT_ADDRESS = (import.meta.env.VITE_TASKBIT_ADDRESS || '').trim()
 
 export const CONTRIBUTION_CATEGORIES = [
   'Paper',

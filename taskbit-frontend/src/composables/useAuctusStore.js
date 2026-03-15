@@ -12,6 +12,7 @@ import {
   CONTRACT_BRAND,
   getTaskBitContract,
   fetchMyContributions,
+  fetchAllContributions,
   fetchBestAvailableContributions,
   fetchPendingContributions,
   fetchMyContributionCount,
@@ -48,6 +49,7 @@ export function useAuctusStore() {
   const latestTxHash = ref('')
   const latestTxUrl = ref('')
   const contributionAccessMode = ref('mine')
+  const reviewAccessError = ref('')
 
   const contributionForm = ref({
     title: '',
@@ -207,6 +209,7 @@ export function useAuctusStore() {
     contributionCount.value = 0
     reputation.value = 0
     contributionAccessMode.value = 'mine'
+    reviewAccessError.value = ''
     resetRoles()
     walletStatus.value = message
     contractStatus.value = `${CONTRACT_BRAND} contract not connected`
@@ -303,12 +306,34 @@ export function useAuctusStore() {
     }
   }
 
+  async function applyContributionSnapshot(contributionResult) {
+    contributions.value = contributionResult.contributions
+    contributionAccessMode.value = contributionResult.source
+
+    if (contributionResult.source === 'all') {
+      contributionCount.value = myContributions.value.length
+      reviewAccessError.value = ''
+      return
+    }
+
+    contributionCount.value = await fetchMyContributionCount(contract)
+
+    if (contributionResult.usedFallback) {
+      reviewAccessError.value =
+        contributionResult.fallbackReason ||
+        'The deployed contract rejected getAllContributions() for this wallet.'
+    } else {
+      reviewAccessError.value = ''
+    }
+  }
+
   async function loadContributions() {
     if (!contract) {
       contributions.value = []
       contributionCount.value = 0
       reputation.value = 0
       contributionAccessMode.value = 'mine'
+      reviewAccessError.value = ''
       resetRoles()
       return
     }
@@ -323,15 +348,8 @@ export function useAuctusStore() {
         fetchMyReputation(contract)
       ])
 
-      contributions.value = contributionResult.contributions
       reputation.value = Number(reputationValue || 0)
-      contributionAccessMode.value = contributionResult.source
-
-      if (contributionResult.source === 'all') {
-        contributionCount.value = myContributions.value.length
-      } else {
-        contributionCount.value = await fetchMyContributionCount(contract)
-      }
+      await applyContributionSnapshot(contributionResult)
 
       if (contributionResult.usedFallback) {
         txStatus.value =
@@ -343,12 +361,76 @@ export function useAuctusStore() {
       contributionCount.value = 0
       reputation.value = 0
       contributionAccessMode.value = 'mine'
+      reviewAccessError.value = ''
 
       if (isUnauthorizedReadError(error)) {
         txStatus.value =
           'The deployed contract rejected this contribution read. Check TaskBit.sol access rules for getAllContributions().'
       } else {
         txStatus.value = 'Failed to load contributions.'
+      }
+    } finally {
+      isLoadingContributions.value = false
+    }
+  }
+
+  async function loadReviewContributions() {
+    if (!contract) {
+      contributions.value = []
+      contributionCount.value = 0
+      reputation.value = 0
+      contributionAccessMode.value = 'mine'
+      reviewAccessError.value = ''
+      resetRoles()
+      return
+    }
+
+    isLoadingContributions.value = true
+
+    try {
+      await loadRoleState()
+      const reputationValue = await fetchMyReputation(contract)
+      reputation.value = Number(reputationValue || 0)
+
+      try {
+        const allContributions = await fetchAllContributions(contract)
+
+        await applyContributionSnapshot({
+          contributions: allContributions,
+          source: 'all',
+          usedFallback: false,
+          fallbackReason: ''
+        })
+      } catch (error) {
+        if (!isUnauthorizedReadError(error)) {
+          throw error
+        }
+
+        const mineOnly = await fetchMyContributions(contract)
+
+        await applyContributionSnapshot({
+          contributions: mineOnly,
+          source: 'mine',
+          usedFallback: true,
+          fallbackReason: error?.reason || error?.shortMessage || error?.message || ''
+        })
+
+        txStatus.value =
+          'This wallet cannot read getAllContributions() from the deployed contract yet. Review page is showing only your own submissions.'
+      }
+    } catch (error) {
+      console.error('Failed to load review contributions:', error)
+      contributions.value = []
+      contributionCount.value = 0
+      reputation.value = 0
+      contributionAccessMode.value = 'mine'
+      reviewAccessError.value = ''
+
+      if (isUnauthorizedReadError(error)) {
+        txStatus.value =
+          'The deployed contract rejected getAllContributions(). Confirm this wallet is a professor/admin and that the frontend ABI/address matches the latest deployment.'
+      } else {
+        txStatus.value = 'Failed to load review contributions.'
       }
     } finally {
       isLoadingContributions.value = false
@@ -740,6 +822,7 @@ export function useAuctusStore() {
     contributionCount,
     reputation,
     contributionAccessMode,
+    reviewAccessError,
     canViewAllContributions,
     isReviewer,
     isProfessor,
@@ -758,6 +841,7 @@ export function useAuctusStore() {
     restoreWalletSession,
     switchNetwork,
     loadContributions,
+    loadReviewContributions,
     refreshPendingReviewList,
     addContribution,
     toggleContribution,

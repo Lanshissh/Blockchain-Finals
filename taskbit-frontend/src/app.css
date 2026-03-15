@@ -308,3 +308,27 @@ textarea:disabled {
     --radius-sm: 12px;
   }
 }
+
+.brand-badge {
+  width: 48px;
+  height: 48px;
+  border-radius: 16px;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  box-shadow: 0 14px 30px rgba(79, 70, 229, 0.18);
+  background: white;
+}
+
+.logo-badge {
+  padding: 0;
+  background: transparent;
+}
+
+.brand-logo {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  border-radius: 16px;
+}

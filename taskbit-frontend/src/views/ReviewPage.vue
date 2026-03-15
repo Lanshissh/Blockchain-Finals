@@ -9,33 +9,51 @@ const searchQuery = ref('')
 const approvingId = ref(null)
 const rejectingId = ref(null)
 const pointsInput = ref({})
-const showMineInReview = ref(true)
+const showMineInReview = ref(false)
+const isRefreshing = ref(false)
 
 onMounted(async () => {
-  await store.loadContributions()
+  await refreshReviewList()
 })
+
+async function refreshReviewList() {
+  isRefreshing.value = true
+  try {
+    if (typeof store.loadReviewContributions === 'function') {
+      await store.loadReviewContributions()
+    } else {
+      await store.loadContributions()
+    }
+  } finally {
+    isRefreshing.value = false
+  }
+}
+
+const contributionAccessMode = computed(() => store.contributionAccessMode.value || 'mine')
+const reviewAccessError = computed(() => store.reviewAccessError?.value || '')
+const canReview = computed(() => store.canReview?.value || false)
+const account = computed(() => String(store.account?.value || '').toLowerCase())
 
 const allLoadedContributions = computed(() => store.visibleContributions.value || [])
 const myContributions = computed(() => store.myContributions.value || [])
 
-const contributionAccessMode = computed(() => store.contributionAccessMode.value || 'mine')
+const othersContributions = computed(() =>
+  allLoadedContributions.value.filter((item) => {
+    const studentAddress = String(item.student || '').toLowerCase()
+    return studentAddress && studentAddress !== account.value
+  })
+)
+
 const totalLoadedCount = computed(() => allLoadedContributions.value.length)
 const myLoadedCount = computed(() => myContributions.value.length)
+const otherLoadedCount = computed(() => othersContributions.value.length)
 
 const reviewSourceContributions = computed(() => {
-  const allItems = allLoadedContributions.value || []
-  const myAddress = String(store.account.value || '').toLowerCase()
+  if (showMineInReview.value) {
+    return allLoadedContributions.value
+  }
 
-  return allItems.filter((item) => {
-    const studentAddress = String(item.student || '').toLowerCase()
-    const isMine = studentAddress === myAddress
-
-    if (showMineInReview.value) {
-      return true
-    }
-
-    return !isMine
-  })
+  return othersContributions.value
 })
 
 const reviewableCount = computed(() => reviewSourceContributions.value.length)
@@ -83,11 +101,15 @@ const filteredReviewContributions = computed(() => {
 })
 
 const emptyStateTitle = computed(() => {
-  if (filteredReviewContributions.value.length === 0 && totalLoadedCount.value > 0) {
-    if (!showMineInReview.value && myLoadedCount.value > 0) {
-      return 'Only your own contributions are loaded'
-    }
+  if (!canReview.value) {
+    return 'Review access required'
+  }
 
+  if (contributionAccessMode.value !== 'all' && !showMineInReview.value) {
+    return 'Global review access is not available'
+  }
+
+  if (filteredReviewContributions.value.length === 0 && totalLoadedCount.value > 0) {
     return 'No contributions found'
   }
 
@@ -95,11 +117,17 @@ const emptyStateTitle = computed(() => {
 })
 
 const emptyStateMessage = computed(() => {
-  if (filteredReviewContributions.value.length === 0 && totalLoadedCount.value > 0) {
-    if (!showMineInReview.value && myLoadedCount.value > 0) {
-      return 'Your loaded contribution belongs to the connected wallet. Turn on "Show my submissions" to display it here.'
-    }
+  if (!canReview.value) {
+    return 'This page is only available to reviewers, professors, or admins.'
+  }
 
+  if (contributionAccessMode.value !== 'all' && !showMineInReview.value) {
+    return reviewAccessError.value
+      ? `The deployed contract only returned your own submissions. ${reviewAccessError.value}`
+      : 'The app is not receiving all submissions from the contract right now. Turn on "Show my submissions" to see the records currently loaded for this wallet.'
+  }
+
+  if (filteredReviewContributions.value.length === 0 && totalLoadedCount.value > 0) {
     return 'There are no contributions matching the current filter.'
   }
 
@@ -143,6 +171,7 @@ async function handleApprove(id) {
   approvingId.value = id
   try {
     await store.approveContribution(id, getPointsValue(id))
+    await refreshReviewList()
   } finally {
     approvingId.value = null
   }
@@ -152,6 +181,7 @@ async function handleReject(id) {
   rejectingId.value = id
   try {
     await store.rejectContribution(id)
+    await refreshReviewList()
   } finally {
     rejectingId.value = null
   }
@@ -201,11 +231,17 @@ function statusBadgeClass(status) {
           {{ contributionAccessMode === 'all' ? 'All contributions' : 'Mine only' }}
         </strong>
         <p>
-          <template v-if="contributionAccessMode === 'all'">
+          <template v-if="!canReview">
+            This wallet does not currently have review access.
+          </template>
+          <template v-else-if="contributionAccessMode === 'all'">
             The contract returned global review data for this wallet.
           </template>
           <template v-else>
-            The app is not currently receiving global review data from the contract.
+            {{
+              reviewAccessError ||
+              'The app is not currently receiving global review data from the contract.'
+            }}
           </template>
         </p>
       </div>
@@ -215,11 +251,14 @@ function statusBadgeClass(status) {
           Loaded: <strong>{{ totalLoadedCount }}</strong>
         </div>
         <div class="debug-pill">
-          Mine: <strong>{{ myLoadedCount }}</strong>
+          Others: <strong>{{ otherLoadedCount }}</strong>
         </div>
         <div class="debug-pill">
-          Review list: <strong>{{ reviewableCount }}</strong>
+          Mine: <strong>{{ myLoadedCount }}</strong>
         </div>
+        <button type="button" class="refresh-btn" :disabled="isRefreshing" @click="refreshReviewList">
+          {{ isRefreshing ? 'Refreshing...' : 'Refresh' }}
+        </button>
       </div>
     </div>
 
@@ -384,9 +423,10 @@ function statusBadgeClass(status) {
       <h2>{{ emptyStateTitle }}</h2>
       <p>{{ emptyStateMessage }}</p>
 
-      <div class="empty-debug" v-if="store.canReview.value">
+      <div class="empty-debug" v-if="canReview">
         <span>Access mode: {{ contributionAccessMode }}</span>
         <span>Total loaded: {{ totalLoadedCount }}</span>
+        <span>Others: {{ otherLoadedCount }}</span>
         <span>Mine: {{ myLoadedCount }}</span>
         <span>Review list: {{ reviewableCount }}</span>
       </div>
@@ -509,56 +549,74 @@ function statusBadgeClass(status) {
   display: flex;
   gap: 10px;
   flex-wrap: wrap;
-  justify-content: flex-end;
+  align-items: center;
 }
 
 .debug-pill {
-  padding: 10px 12px;
+  padding: 10px 14px;
   border-radius: 999px;
   background: #eef2ff;
-  color: #3730a3;
+  color: #312e81;
   font-size: 0.92rem;
-  white-space: nowrap;
+  font-weight: 700;
+}
+
+.refresh-btn {
+  border: none;
+  border-radius: 999px;
+  background: #111827;
+  color: #ffffff;
+  font-weight: 700;
+  padding: 10px 16px;
+  cursor: pointer;
+  transition: transform 0.18s ease, opacity 0.18s ease;
+}
+
+.refresh-btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+}
+
+.refresh-btn:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
 }
 
 .toolbar {
-  padding: 22px 26px;
+  padding: 18px 20px;
   display: flex;
   justify-content: space-between;
-  gap: 20px;
-  align-items: flex-start;
+  gap: 18px;
+  align-items: center;
+  flex-wrap: wrap;
 }
 
 .toolbar-left {
-  display: grid;
-  gap: 14px;
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  flex-wrap: wrap;
 }
 
 .tabs {
   display: flex;
-  gap: 10px;
   flex-wrap: wrap;
+  gap: 10px;
 }
 
 .tab-btn {
-  border: 0;
+  border: none;
   border-radius: 999px;
-  padding: 14px 18px;
-  font: inherit;
-  font-weight: 800;
+  padding: 10px 16px;
+  background: #e2e8f0;
+  color: #334155;
+  font-weight: 700;
   cursor: pointer;
-  background: #cfd8e3;
-  color: #10223e;
-  transition: transform 0.18s ease, opacity 0.18s ease;
-}
-
-.tab-btn:hover {
-  transform: translateY(-1px);
+  transition: all 0.18s ease;
 }
 
 .tab-btn.active {
-  background: linear-gradient(135deg, #4f46e5, #5b4ff0);
-  color: white;
+  background: #4f46e5;
+  color: #ffffff;
 }
 
 .mine-toggle {
@@ -566,39 +624,27 @@ function statusBadgeClass(status) {
   align-items: center;
   gap: 10px;
   color: #334155;
-  font-weight: 700;
-}
-
-.mine-toggle input {
-  width: 18px;
-  height: 18px;
+  font-weight: 600;
 }
 
 .search-box {
+  min-width: min(320px, 100%);
   display: grid;
   gap: 8px;
-  min-width: min(360px, 100%);
 }
 
 .search-box label {
+  font-size: 0.92rem;
   font-weight: 700;
-  color: #10223e;
+  color: #334155;
 }
 
 .search-box input {
-  width: 100%;
-  border: 1px solid #c7d2e0;
-  background: white;
+  border: 1px solid rgba(148, 163, 184, 0.32);
   border-radius: 16px;
-  padding: 14px 16px;
-  font: inherit;
-  color: #10223e;
+  padding: 12px 14px;
+  font-size: 0.98rem;
   outline: none;
-}
-
-.search-box input:focus {
-  border-color: #7c87ff;
-  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.12);
 }
 
 .review-list {
@@ -607,9 +653,15 @@ function statusBadgeClass(status) {
 }
 
 .review-card {
-  padding: 24px;
+  padding: 22px;
   display: grid;
   gap: 18px;
+}
+
+.review-card-top {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
 }
 
 .review-card-meta {
@@ -624,15 +676,15 @@ function statusBadgeClass(status) {
 .self-chip {
   display: inline-flex;
   align-items: center;
+  padding: 7px 12px;
   border-radius: 999px;
-  padding: 8px 12px;
-  font-size: 0.86rem;
+  font-size: 0.82rem;
   font-weight: 800;
 }
 
 .category-chip {
-  background: #e0e7ff;
-  color: #3730a3;
+  background: #ede9fe;
+  color: #5b21b6;
 }
 
 .status-badge.pending {
@@ -651,25 +703,25 @@ function statusBadgeClass(status) {
 }
 
 .self-chip {
-  background: #ede9fe;
-  color: #5b21b6;
+  background: #e0f2fe;
+  color: #075985;
 }
 
 .review-card h2 {
-  margin: 0;
+  margin: 0 0 8px;
   color: #0f172a;
-  font-size: 1.35rem;
+  font-size: 1.25rem;
 }
 
 .review-description {
-  margin: 10px 0 0;
+  margin: 0;
   color: #475569;
-  line-height: 1.65;
+  line-height: 1.7;
 }
 
 .review-info-grid {
   display: grid;
-  grid-template-columns: repeat(6, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
   gap: 14px;
 }
 
@@ -677,45 +729,49 @@ function statusBadgeClass(status) {
   padding: 14px 16px;
   border-radius: 18px;
   background: #f8fafc;
-  border: 1px solid rgba(148, 163, 184, 0.14);
+  border: 1px solid rgba(148, 163, 184, 0.16);
 }
 
 .info-item span {
   display: block;
   margin-bottom: 6px;
-  font-size: 0.82rem;
   color: #64748b;
+  font-size: 0.82rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
 }
 
 .info-item strong {
   color: #0f172a;
-  word-break: break-word;
+  font-size: 1rem;
 }
 
 .review-actions {
   display: flex;
   justify-content: space-between;
-  align-items: end;
   gap: 16px;
   flex-wrap: wrap;
+  align-items: end;
 }
 
 .points-box {
   display: grid;
   gap: 8px;
-  min-width: 150px;
+  min-width: 120px;
 }
 
 .points-box label {
+  font-size: 0.92rem;
   font-weight: 700;
-  color: #10223e;
+  color: #334155;
 }
 
 .points-box input {
-  border: 1px solid #c7d2e0;
+  border: 1px solid rgba(148, 163, 184, 0.3);
   border-radius: 14px;
   padding: 12px 14px;
-  font: inherit;
+  font-size: 1rem;
   outline: none;
 }
 
@@ -726,120 +782,84 @@ function statusBadgeClass(status) {
 }
 
 .action-btn {
-  border: 0;
+  border: none;
   border-radius: 16px;
-  padding: 13px 18px;
-  font: inherit;
+  padding: 12px 18px;
   font-weight: 800;
   cursor: pointer;
   transition: transform 0.18s ease, opacity 0.18s ease;
 }
 
-.action-btn:hover {
+.action-btn:hover:not(:disabled) {
   transform: translateY(-1px);
 }
 
 .action-btn:disabled {
-  opacity: 0.7;
+  opacity: 0.6;
   cursor: not-allowed;
-  transform: none;
 }
 
 .action-btn.approve {
-  background: #16a34a;
-  color: white;
+  background: #22c55e;
+  color: #ffffff;
 }
 
 .action-btn.reject {
-  background: #dc2626;
-  color: white;
+  background: #ef4444;
+  color: #ffffff;
 }
 
 .empty-state {
-  padding: 42px 24px;
+  padding: 32px 24px;
   text-align: center;
 }
 
 .empty-state h2 {
   margin: 0 0 10px;
-  font-size: 1.2rem;
   color: #0f172a;
 }
 
 .empty-state p {
   margin: 0;
-  color: #64748b;
-  line-height: 1.65;
+  color: #475569;
+  line-height: 1.7;
 }
 
 .empty-debug {
   margin-top: 18px;
   display: flex;
+  gap: 12px;
   justify-content: center;
-  gap: 10px;
   flex-wrap: wrap;
-}
-
-.empty-debug span {
-  background: #f1f5f9;
-  color: #334155;
-  padding: 8px 12px;
-  border-radius: 999px;
-  font-size: 0.88rem;
-}
-
-@media (max-width: 1180px) {
-  .review-info-grid {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
+  color: #64748b;
+  font-size: 0.92rem;
 }
 
 @media (max-width: 900px) {
-  .review-hero,
-  .toolbar,
-  .access-banner {
+  .review-hero {
     flex-direction: column;
     align-items: stretch;
   }
 
-  .review-stats,
-  .access-banner-right {
-    justify-content: flex-start;
-  }
-
-  .search-box {
-    min-width: 100%;
-  }
-}
-
-@media (max-width: 720px) {
-  .review-info-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .card {
-    border-radius: 22px;
-  }
-
-  .review-hero,
+  .access-banner,
   .toolbar,
-  .review-card,
-  .access-banner {
-    padding: 20px;
-  }
-}
-
-@media (max-width: 520px) {
-  .review-info-grid {
-    grid-template-columns: 1fr;
+  .review-actions {
+    flex-direction: column;
+    align-items: stretch;
   }
 
+  .access-banner-right,
+  .toolbar-left,
   .action-buttons {
     width: 100%;
   }
 
-  .action-btn {
+  .action-buttons > * {
     flex: 1 1 0;
+  }
+
+  .search-box {
+    min-width: 100%;
   }
 }
 </style>

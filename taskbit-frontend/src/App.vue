@@ -117,7 +117,9 @@ function iconPath(icon) {
   <div v-else class="app-shell">
     <aside v-if="isAuthenticated" class="app-sidebar">
       <div class="sidebar-brand">
-        <div class="brand-badge">TB</div>
+        <div class="brand-badge logo-badge">
+          <img src="/logo.png" alt="TaskBit logo" class="brand-logo" />
+        </div>
         <div class="brand-copy">
           <h1>TaskBit</h1>
           <p>Academic contribution tracker</p>

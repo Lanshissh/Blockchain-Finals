@@ -12,6 +12,10 @@ export const CONTRACT_LABEL = `${CONTRACT_BRAND} smart contract`
 export const BLOCK_EXPLORER_TX_BASE_URL = 'https://sepolia.etherscan.io/tx/'
 
 export function getTaskBitContract(signerOrProvider) {
+  if (!TASKBIT_ADDRESS) {
+    throw new Error('TaskBit contract address is not configured. Set VITE_TASKBIT_ADDRESS in your .env file.')
+  }
+
   return new ethers.Contract(TASKBIT_ADDRESS, TASKBIT_ABI, signerOrProvider)
 }
 
@@ -147,6 +151,7 @@ export function isUnauthorizedReadError(error) {
     message.includes('execution reverted') ||
     message.includes('require(false)') ||
     message.includes('reverted') ||
+    message.includes('ownableunauthorizedaccount') ||
     message.includes('no_reviewer') ||
     message.includes('no_admin') ||
     message.includes('not authorized') ||
@@ -298,6 +303,10 @@ export function getReadableBlockchainError(error) {
     return 'Wrong network. Please switch MetaMask to Sepolia.'
   }
 
+  if (message.includes('contract address is not configured')) {
+    return 'TaskBit contract address is missing. Set VITE_TASKBIT_ADDRESS in your .env file.'
+  }
+
   if (message.includes('no_title')) {
     return 'Contribution title cannot be empty.'
   }
@@ -314,7 +323,7 @@ export function getReadableBlockchainError(error) {
     return 'Invalid wallet address.'
   }
 
-  if (message.includes('no_admin')) {
+  if (message.includes('no_admin') || message.includes('ownableunauthorizedaccount')) {
     return 'Only the owner or an admin can perform this action.'
   }
 
