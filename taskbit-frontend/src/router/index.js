@@ -8,13 +8,32 @@ import ReviewPage from '../views/ReviewPage.vue'
 import AdminPage from '../views/AdminPage.vue'
 import { useAuctusStore } from '../composables/useAuctusStore'
 
+const APP_NAME = 'TaskBit'
+
+function getDefaultAuthenticatedRoute(store) {
+  const isAdmin = Boolean(store.isAdmin.value)
+  const isOwner = Boolean(store.isOwner.value)
+  const isProfessor = Boolean(store.isProfessor.value)
+  const isReviewer = Boolean(store.isReviewer.value)
+
+  if (isAdmin || isOwner) {
+    return '/admin'
+  }
+
+  if (isProfessor || isReviewer) {
+    return '/review'
+  }
+
+  return '/calendar'
+}
+
 const routes = [
   {
     path: '/',
     name: 'root',
     redirect: () => {
       const store = useAuctusStore()
-      return store.account.value ? '/dashboard' : '/login'
+      return store.account.value ? getDefaultAuthenticatedRoute(store) : '/login'
     }
   },
   {
@@ -68,7 +87,7 @@ const routes = [
     component: ReviewPage,
     meta: {
       requiresAuth: true,
-      requiresProfessor: true,
+      requiresReviewer: true,
       title: 'Review'
     }
   },
@@ -87,7 +106,7 @@ const routes = [
     name: 'not-found',
     redirect: () => {
       const store = useAuctusStore()
-      return store.account.value ? '/dashboard' : '/login'
+      return store.account.value ? getDefaultAuthenticatedRoute(store) : '/login'
     }
   }
 ]
@@ -96,14 +115,14 @@ const router = createRouter({
   history: createWebHistory(),
   routes,
   scrollBehavior() {
-    return { top: 0 }
+    return { top: 0, left: 0 }
   }
 })
 
 router.beforeEach(async (to) => {
   const store = useAuctusStore()
+
   await store.init()
-  await store.loadContributions()
 
   const isAuthenticated = Boolean(store.account.value)
   const isReviewer = Boolean(store.isReviewer.value)
@@ -112,8 +131,7 @@ router.beforeEach(async (to) => {
   const isOwner = Boolean(store.isOwner.value)
 
   if (typeof document !== 'undefined') {
-    const pageTitle = to.meta?.title ? `${to.meta.title} | TaskBit` : 'TaskBit'
-    document.title = pageTitle
+    document.title = to.meta?.title ? `${to.meta.title} | ${APP_NAME}` : APP_NAME
   }
 
   if (to.meta.requiresAuth && !isAuthenticated) {
@@ -124,19 +142,19 @@ router.beforeEach(async (to) => {
   }
 
   if (to.meta.guestOnly && isAuthenticated) {
-    return '/dashboard'
+    return getDefaultAuthenticatedRoute(store)
   }
 
-  if (to.meta.requiresReviewer && !isReviewer) {
-    return '/dashboard'
+  if (to.meta.requiresReviewer && !(isReviewer || isProfessor || isAdmin || isOwner)) {
+    return getDefaultAuthenticatedRoute(store)
   }
 
-  if (to.meta.requiresProfessor && !isProfessor && !isAdmin && !isOwner) {
-    return '/dashboard'
+  if (to.meta.requiresProfessor && !(isProfessor || isAdmin || isOwner)) {
+    return getDefaultAuthenticatedRoute(store)
   }
 
-  if (to.meta.requiresAdmin && !isAdmin && !isOwner) {
-    return '/dashboard'
+  if (to.meta.requiresAdmin && !(isAdmin || isOwner)) {
+    return getDefaultAuthenticatedRoute(store)
   }
 
   return true

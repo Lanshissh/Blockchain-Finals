@@ -12,6 +12,8 @@ import {
   CONTRACT_BRAND,
   getTaskBitContract,
   fetchMyContributions,
+  fetchAllContributions,
+  fetchPendingContributions,
   fetchMyContributionCount,
   fetchMyReputation,
   checkReviewerRole,
@@ -96,8 +98,24 @@ export function useAuctusStore() {
     contributions.value.filter((item) => !item.deleted)
   )
 
+  const myContributions = computed(() =>
+    visibleContributions.value.filter(
+      (item) => normalizeAddress(item.student) === normalizeAddress(account.value)
+    )
+  )
+
+  const reviewContributions = computed(() =>
+    visibleContributions.value.filter(
+      (item) => normalizeAddress(item.student) !== normalizeAddress(account.value)
+    )
+  )
+
   const pendingContributions = computed(() =>
     visibleContributions.value.filter((item) => Number(item.status) === 0)
+  )
+
+  const pendingReviewContributions = computed(() =>
+    reviewContributions.value.filter((item) => Number(item.status) === 0)
   )
 
   const approvedContributions = computed(() =>
@@ -273,15 +291,6 @@ export function useAuctusStore() {
       isAdmin.value = true
       isReviewer.value = true
     }
-
-    console.log('Role state loaded:', {
-      account: account.value,
-      isOwner: isOwner.value,
-      isAdmin: isAdmin.value,
-      isProfessor: isProfessor.value,
-      isReviewer: isReviewer.value,
-      userRole: userRole.value
-    })
   }
 
   async function loadContributions() {
@@ -298,15 +307,25 @@ export function useAuctusStore() {
     try {
       await loadRoleState()
 
-      const [contributionList, count, reputationValue] = await Promise.all([
-        fetchMyContributions(contract),
-        fetchMyContributionCount(contract),
+      const canReview = isReviewer.value || isProfessor.value || isAdmin.value || isOwner.value
+
+      const contributionPromise = canReview
+        ? fetchAllContributions(contract)
+        : fetchMyContributions(contract)
+
+      const [contributionList, reputationValue] = await Promise.all([
+        contributionPromise,
         fetchMyReputation(contract)
       ])
 
       contributions.value = contributionList
-      contributionCount.value = count
       reputation.value = Number(reputationValue || 0)
+
+      if (canReview) {
+        contributionCount.value = myContributions.value.length
+      } else {
+        contributionCount.value = await fetchMyContributionCount(contract)
+      }
     } catch (error) {
       console.error('Failed to load contributions:', error)
       contributions.value = []
@@ -315,6 +334,34 @@ export function useAuctusStore() {
       txStatus.value = 'Failed to load contributions.'
     } finally {
       isLoadingContributions.value = false
+    }
+  }
+
+  async function refreshPendingReviewList() {
+    if (!contract) {
+      return
+    }
+
+    const canReview = isReviewer.value || isProfessor.value || isAdmin.value || isOwner.value
+
+    if (!canReview) {
+      return
+    }
+
+    try {
+      const pendingList = await fetchPendingContributions(contract)
+      const existingNonPending = visibleContributions.value.filter(
+        (item) => Number(item.status) !== 0
+      )
+
+      contributions.value = [...pendingList, ...existingNonPending].sort((a, b) => {
+        if (a.status !== b.status) return a.status - b.status
+        if (a.completed !== b.completed) return a.completed ? 1 : -1
+        if (a.dueDate !== b.dueDate) return a.dueDate - b.dueDate
+        return b.createdAt - a.createdAt
+      })
+    } catch (error) {
+      console.error('Failed to refresh pending review list:', error)
     }
   }
 
@@ -538,6 +585,7 @@ export function useAuctusStore() {
       const txResult = await setProfessorRole(contract, targetAccount, true)
       setLatestTransaction(txResult)
       txStatus.value = formatTxSummary('Professor role granted', txResult)
+      await loadRoleState()
       await loadContributions()
       return true
     } catch (error) {
@@ -559,6 +607,7 @@ export function useAuctusStore() {
       const txResult = await setProfessorRole(contract, targetAccount, false)
       setLatestTransaction(txResult)
       txStatus.value = formatTxSummary('Professor role removed', txResult)
+      await loadRoleState()
       await loadContributions()
       return true
     } catch (error) {
@@ -580,6 +629,7 @@ export function useAuctusStore() {
       const txResult = await setAdminRole(contract, targetAccount, true)
       setLatestTransaction(txResult)
       txStatus.value = formatTxSummary('Admin role granted', txResult)
+      await loadRoleState()
       await loadContributions()
       return true
     } catch (error) {
@@ -601,6 +651,7 @@ export function useAuctusStore() {
       const txResult = await setAdminRole(contract, targetAccount, false)
       setLatestTransaction(txResult)
       txStatus.value = formatTxSummary('Admin role removed', txResult)
+      await loadRoleState()
       await loadContributions()
       return true
     } catch (error) {
@@ -667,7 +718,10 @@ export function useAuctusStore() {
     contributionForm,
     contributions,
     visibleContributions,
+    myContributions,
+    reviewContributions,
     pendingContributions,
+    pendingReviewContributions,
     approvedContributions,
     rejectedContributions,
     completedContributions,
@@ -689,6 +743,7 @@ export function useAuctusStore() {
     restoreWalletSession,
     switchNetwork,
     loadContributions,
+    refreshPendingReviewList,
     addContribution,
     toggleContribution,
     removeContribution,

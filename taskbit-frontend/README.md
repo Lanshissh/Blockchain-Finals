@@ -1,44 +1,81 @@
-# taskbit-frontend
+# TaskBit
 
-This template should help get you started developing with Vue 3 in Vite.
+TaskBit is a blockchain-based academic contribution tracker built with **Vue 3**, **Vite**, **Ethers.js**, and **Solidity**.
 
-## Recommended IDE Setup
+It allows students to submit academic contributions, lets professors/admins review submissions, and enables approved contributions to be minted as **ERC-721 achievement NFTs**.
 
-[VS Code](https://code.visualstudio.com/) + [Vue (Official)](https://marketplace.visualstudio.com/items?itemName=Vue.volar) (and disable Vetur).
+---
 
-## Recommended Browser Setup
+## Features
 
-- Chromium-based browsers (Chrome, Edge, Brave, etc.):
-  - [Vue.js devtools](https://chromewebstore.google.com/detail/vuejs-devtools/nhdogjmejiglipccpnnnanhbledajbpd)
-  - [Turn on Custom Object Formatter in Chrome DevTools](http://bit.ly/object-formatters)
-- Firefox:
-  - [Vue.js devtools](https://addons.mozilla.org/en-US/firefox/addon/vue-js-devtools/)
-  - [Turn on Custom Object Formatter in Firefox DevTools](https://fxdx.dev/firefox-devtools-custom-object-formatters/)
+- Connect wallet using **MetaMask**
+- Role-aware interface for:
+  - Student
+  - Professor
+  - Admin
+  - Contract Owner
+- Submit academic contributions with:
+  - title
+  - category
+  - description
+  - due date
+- Track contribution status:
+  - Pending
+  - Approved
+  - Rejected
+- Mark contributions as completed
+- Delete pending contributions
+- Review and score student contributions
+- Mint approved contributions as NFTs
+- View contribution deadlines in calendar view
+- Monitor contribution progress in dashboard and profile pages
 
-## Customize configuration
+---
 
-See [Vite Configuration Reference](https://vite.dev/config/).
+## Tech Stack
 
-## Project Setup
+### Frontend
+- Vue 3
+- Vite
+- Vue Router
+- Ethers.js
 
-```sh
-npm install
-```
+### Smart Contract
+- Solidity
+- OpenZeppelin ERC-721
+- Ownable access control
 
-### Compile and Hot-Reload for Development
+### Wallet / Blockchain
+- MetaMask
+- Sepolia test network
 
-```sh
-npm run dev
-```
+---
 
-### Compile and Minify for Production
+## Project Structure
 
-```sh
-npm run build
-```
-
-### Lint with [ESLint](https://eslint.org/)
-
-```sh
-npm run lint
-```
+```text
+taskbit-frontend/
+├── src/
+│   ├── contracts/
+│   │   ├── TaskBit.sol
+│   │   └── taskbit.js
+│   ├── composables/
+│   │   └── useAuctusStore.js
+│   ├── services/
+│   │   ├── taskbit.js
+│   │   └── wallet.js
+│   ├── views/
+│   │   ├── LoginPage.vue
+│   │   ├── DashboardPage.vue
+│   │   ├── CalendarPage.vue
+│   │   ├── ContributionsPage.vue
+│   │   ├── ReviewPage.vue
+│   │   ├── AdminPage.vue
+│   │   └── ProfilePage.vue
+│   ├── router/
+│   │   └── index.js
+│   ├── App.vue
+│   ├── main.js
+│   └── app.css
+├── package.json
+└── README.md

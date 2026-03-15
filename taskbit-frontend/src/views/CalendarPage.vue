@@ -1,474 +1,172 @@
-<template>
-  <section class="page-layout">
-    <header class="hero-card">
-      <div>
-        <p class="content-header-eyebrow">Schedule</p>
-        <h2>{{ heroTitle }}</h2>
-        <p>
-          {{ heroDescription }}
-        </p>
-      </div>
-
-      <div class="hero-stats">
-        <div class="stat-card">
-          <span class="stat-label">Role</span>
-          <strong>{{ roleLabel }}</strong>
-        </div>
-        <div class="stat-card">
-          <span class="stat-label">This Month</span>
-          <strong>{{ currentMonthLabel }}</strong>
-        </div>
-        <div class="stat-card">
-          <span class="stat-label">Upcoming</span>
-          <strong>{{ upcomingContributions.length }}</strong>
-        </div>
-        <div class="stat-card">
-          <span class="stat-label">Today</span>
-          <strong>{{ todayItems.length }}</strong>
-        </div>
-      </div>
-    </header>
-
-    <section v-if="isWrongNetwork" class="info-card">
-      <h3>Wrong Network</h3>
-      <p>
-        Your wallet is connected to the wrong network. Switch to
-        {{ networkName }} before viewing contribution deadlines.
-      </p>
-      <div class="action-row">
-        <button class="warning-btn" @click="switchNetwork">Switch Network</button>
-      </div>
-    </section>
-
-    <section class="calendar-layout">
-      <article class="panel-card calendar-panel">
-        <div class="panel-header">
-          <div>
-            <h3>{{ calendarTitle }}</h3>
-            <p>{{ calendarDescription }}</p>
-          </div>
-
-          <div class="calendar-nav">
-            <button class="ghost-btn nav-btn" @click="goToPreviousMonth">
-              Prev
-            </button>
-            <button class="ghost-btn nav-btn" @click="goToToday">
-              Today
-            </button>
-            <button class="ghost-btn nav-btn" @click="goToNextMonth">
-              Next
-            </button>
-          </div>
-        </div>
-
-        <div class="month-heading">
-          <h4>{{ currentMonthLabel }}</h4>
-        </div>
-
-        <div class="weekday-row">
-          <span v-for="day in weekDays" :key="day">{{ day }}</span>
-        </div>
-
-        <div class="calendar-grid">
-          <button
-            v-for="day in calendarDays"
-            :key="day.key"
-            class="calendar-cell"
-            :class="{
-              muted: !day.inCurrentMonth,
-              today: day.isToday,
-              selected: day.isSelected,
-              'has-items': day.items.length > 0
-            }"
-            @click="selectDay(day.date)"
-          >
-            <div class="cell-top">
-              <span class="day-number">{{ day.dayNumber }}</span>
-              <span v-if="day.items.length" class="item-count">
-                {{ day.items.length }}
-              </span>
-            </div>
-
-            <div class="cell-items">
-              <div
-                v-for="item in day.items.slice(0, 2)"
-                :key="item.id"
-                class="cell-pill"
-                :class="statusClass(item.status)"
-              >
-                {{ item.title }}
-              </div>
-
-              <div v-if="day.items.length > 2" class="cell-more">
-                +{{ day.items.length - 2 }} more
-              </div>
-            </div>
-          </button>
-        </div>
-      </article>
-
-      <article class="panel-card sidebar-panel">
-        <div class="panel-header">
-          <div>
-            <h3>{{ selectedDayLabel }}</h3>
-            <p>{{ selectedDescription }}</p>
-          </div>
-          <button class="ghost-btn" @click="loadContributions">Refresh</button>
-        </div>
-
-        <div class="sidebar-stats">
-          <div class="mini-stat">
-            <span>Selected Day</span>
-            <strong>{{ selectedDayItems.length }}</strong>
-          </div>
-          <div class="mini-stat">
-            <span>Approved</span>
-            <strong>{{ selectedApprovedCount }}</strong>
-          </div>
-          <div class="mini-stat">
-            <span>Pending</span>
-            <strong>{{ selectedPendingCount }}</strong>
-          </div>
-          <div class="mini-stat">
-            <span>Completed</span>
-            <strong>{{ selectedCompletedCount }}</strong>
-          </div>
-        </div>
-
-        <div v-if="isLoadingContributions" class="empty-state">
-          Loading calendar data...
-        </div>
-
-        <div v-else-if="!selectedDayItems.length" class="empty-state">
-          No contribution deadlines on this day.
-        </div>
-
-        <div v-else class="agenda-list">
-          <article
-            v-for="item in selectedDayItems"
-            :key="item.id"
-            class="agenda-card"
-          >
-            <div class="agenda-top">
-              <div>
-                <h4>{{ item.title }}</h4>
-                <p class="contribution-meta">
-                  #{{ item.id }} · {{ item.categoryLabel }}
-                </p>
-              </div>
-
-              <div class="badge-group">
-                <span class="badge category">{{ item.categoryLabel }}</span>
-                <span class="badge" :class="statusClass(item.status)">
-                  {{ item.statusLabel }}
-                </span>
-              </div>
-            </div>
-
-            <p class="description">{{ item.description }}</p>
-
-            <div class="details-grid">
-              <div>
-                <span class="detail-label">Due</span>
-                <strong>{{ formatDate(item.dueDate) }}</strong>
-              </div>
-              <div>
-                <span class="detail-label">Points</span>
-                <strong>{{ item.pointsAwarded }}</strong>
-              </div>
-              <div>
-                <span class="detail-label">Completed</span>
-                <strong>{{ item.completed ? 'Yes' : 'No' }}</strong>
-              </div>
-              <div>
-                <span class="detail-label">NFT</span>
-                <strong>{{ item.nftMinted ? 'Minted' : 'Not Minted' }}</strong>
-              </div>
-            </div>
-
-            <div
-              v-if="item.student && (isProfessor || isAdmin || isOwner)"
-              class="review-box"
-            >
-              <span>Student:</span>
-              <strong>{{ shortenAddress(item.student) }}</strong>
-            </div>
-          </article>
-        </div>
-      </article>
-    </section>
-
-    <section class="panel-card">
-      <div class="panel-header">
-        <div>
-          <h3>{{ upcomingTitle }}</h3>
-          <p>{{ upcomingDescription }}</p>
-        </div>
-      </div>
-
-      <div v-if="!upcomingContributions.length" class="empty-state">
-        No upcoming contribution deadlines found.
-      </div>
-
-      <div v-else class="contribution-list">
-        <article
-          v-for="item in upcomingContributions.slice(0, 6)"
-          :key="item.id"
-          class="contribution-card"
-        >
-          <div class="contribution-top">
-            <div>
-              <h4>{{ item.title }}</h4>
-              <p class="contribution-meta">
-                #{{ item.id }} · {{ item.categoryLabel }}
-              </p>
-            </div>
-
-            <div class="badge-group">
-              <span class="badge category">{{ item.categoryLabel }}</span>
-              <span class="badge" :class="statusClass(item.status)">
-                {{ item.statusLabel }}
-              </span>
-            </div>
-          </div>
-
-          <div class="details-grid">
-            <div>
-              <span class="detail-label">Due Date</span>
-              <strong>{{ formatDate(item.dueDate) }}</strong>
-            </div>
-            <div>
-              <span class="detail-label">Completed</span>
-              <strong>{{ item.completed ? 'Yes' : 'No' }}</strong>
-            </div>
-            <div>
-              <span class="detail-label">Points</span>
-              <strong>{{ item.pointsAwarded }}</strong>
-            </div>
-            <div>
-              <span class="detail-label">NFT</span>
-              <strong>{{ item.nftMinted ? 'Minted' : 'Not Minted' }}</strong>
-            </div>
-          </div>
-        </article>
-      </div>
-    </section>
-  </section>
-</template>
-
 <script setup>
 import { computed, onMounted, ref } from 'vue'
+import { RouterLink } from 'vue-router'
 import { useAuctusStore } from '../composables/useAuctusStore'
 
 const store = useAuctusStore()
 
-const {
-  visibleContributions,
-  roleLabel,
-  isProfessor,
-  isAdmin,
-  isOwner,
-  isWrongNetwork,
-  isLoadingContributions,
-  switchNetwork,
-  loadContributions,
-  init,
-  networkName
-} = store
+const currentMonth = ref(new Date().getMonth())
+const currentYear = ref(new Date().getFullYear())
+const selectedDayKey = ref('')
+const activeFilter = ref('all')
 
-const weekDays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+onMounted(async () => {
+  await store.init()
+  await store.loadContributions()
 
-const today = new Date()
-const currentMonth = ref(new Date(today.getFullYear(), today.getMonth(), 1))
-const selectedDate = ref(startOfDay(today))
-
-const userMode = computed(() => {
-  if (isAdmin.value || isOwner.value) return 'admin'
-  if (isProfessor.value) return 'professor'
-  return 'student'
+  const todayKey = buildDateKeyFromDate(new Date())
+  selectedDayKey.value = todayKey
 })
 
-const heroTitle = computed(() => {
-  if (userMode.value === 'admin') return 'Admin Calendar'
-  if (userMode.value === 'professor') return 'Professor Calendar'
-  return 'Student Calendar'
-})
-
-const heroDescription = computed(() => {
-  if (userMode.value === 'admin') {
-    return 'Monitor deadline activity, review upcoming records, and track academic workflow timing across the dashboard.'
-  }
-  if (userMode.value === 'professor') {
-    return 'Track due contributions, review schedules, and monitor upcoming student work.'
-  }
-  return 'Track contribution deadlines, review your upcoming work, and manage your academic schedule.'
-})
-
-const calendarTitle = computed(() => {
-  if (userMode.value === 'admin') return 'System Deadline Calendar'
-  if (userMode.value === 'professor') return 'Review Calendar'
-  return 'Monthly Calendar'
-})
-
-const calendarDescription = computed(() => {
-  if (userMode.value === 'admin') return 'Contribution due dates shown in an admin monitoring view.'
-  if (userMode.value === 'professor') return 'Contribution due dates shown for professor review timing.'
-  return 'Contribution due dates are shown on their scheduled day.'
-})
-
-const selectedDescription = computed(() => {
-  if (userMode.value === 'admin') return 'Contribution records scheduled on the selected date.'
-  if (userMode.value === 'professor') return 'Student work due on the selected date.'
-  return 'Your contribution records due on the selected date.'
-})
-
-const upcomingTitle = computed(() => {
-  if (userMode.value === 'admin') return 'Upcoming Deadline Activity'
-  if (userMode.value === 'professor') return 'Upcoming Review Items'
-  return 'Upcoming Contributions'
-})
-
-const upcomingDescription = computed(() => {
-  if (userMode.value === 'admin') return 'Nearest due dates from today onward in the current dashboard view.'
-  if (userMode.value === 'professor') return 'Upcoming due work that may require review.'
-  return 'Nearest due dates from today onward.'
-})
-
-const currentMonthLabel = computed(() =>
-  currentMonth.value.toLocaleDateString(undefined, {
-    year: 'numeric',
-    month: 'long'
-  })
-)
-
-const selectedDayLabel = computed(() =>
-  selectedDate.value.toLocaleDateString(undefined, {
-    year: 'numeric',
+const monthLabel = computed(() => {
+  return new Intl.DateTimeFormat(undefined, {
     month: 'long',
-    day: 'numeric'
-  })
-)
+    year: 'numeric'
+  }).format(new Date(currentYear.value, currentMonth.value, 1))
+})
 
 const calendarDays = computed(() => {
-  const monthStart = new Date(
-    currentMonth.value.getFullYear(),
-    currentMonth.value.getMonth(),
-    1
-  )
-  const monthEnd = new Date(
-    currentMonth.value.getFullYear(),
-    currentMonth.value.getMonth() + 1,
-    0
-  )
+  const firstDay = new Date(currentYear.value, currentMonth.value, 1)
+  const lastDay = new Date(currentYear.value, currentMonth.value + 1, 0)
 
-  const gridStart = new Date(monthStart)
-  gridStart.setDate(monthStart.getDate() - monthStart.getDay())
+  const daysInMonth = lastDay.getDate()
+  const startWeekday = firstDay.getDay()
 
-  const gridEnd = new Date(monthEnd)
-  gridEnd.setDate(monthEnd.getDate() + (6 - monthEnd.getDay()))
+  const cells = []
 
-  const days = []
-  const cursor = new Date(gridStart)
-
-  while (cursor <= gridEnd) {
-    const dayDate = startOfDay(cursor)
-    const items = getItemsForDate(dayDate)
-
-    days.push({
-      key: dayDate.toISOString(),
-      date: new Date(dayDate),
-      dayNumber: dayDate.getDate(),
-      inCurrentMonth: dayDate.getMonth() === currentMonth.value.getMonth(),
-      isToday: isSameDate(dayDate, today),
-      isSelected: isSameDate(dayDate, selectedDate.value),
-      items
+  for (let i = 0; i < startWeekday; i += 1) {
+    cells.push({
+      key: `empty-start-${i}`,
+      isEmpty: true
     })
-
-    cursor.setDate(cursor.getDate() + 1)
   }
 
-  return days
+  for (let day = 1; day <= daysInMonth; day += 1) {
+    const date = new Date(currentYear.value, currentMonth.value, day)
+    const key = buildDateKeyFromDate(date)
+    const items = getContributionsForDateKey(key)
+
+    cells.push({
+      key,
+      isEmpty: false,
+      day,
+      date,
+      isToday: key === buildDateKeyFromDate(new Date()),
+      isSelected: key === selectedDayKey.value,
+      items,
+      hasItems: items.length > 0
+    })
+  }
+
+  return cells
 })
 
-const selectedDayItems = computed(() =>
-  getItemsForDate(selectedDate.value).sort((a, b) => a.dueDate - b.dueDate)
-)
+const monthContributions = computed(() => {
+  const filtered = applyContributionFilter(store.visibleContributions.value)
 
-const todayItems = computed(() => getItemsForDate(today))
-
-const upcomingContributions = computed(() => {
-  const now = startOfDay(today).getTime() / 1000
-
-  return [...visibleContributions.value]
-    .filter((item) => Number(item.dueDate) >= now)
-    .sort((a, b) => Number(a.dueDate) - Number(b.dueDate))
+  return [...filtered]
+    .filter((item) => {
+      if (!item.dueDate) return false
+      const dueDate = new Date(Number(item.dueDate) * 1000)
+      return (
+        dueDate.getFullYear() === currentYear.value &&
+        dueDate.getMonth() === currentMonth.value
+      )
+    })
+    .sort((a, b) => a.dueDate - b.dueDate)
 })
 
-const selectedApprovedCount = computed(
-  () => selectedDayItems.value.filter((item) => Number(item.status) === 1).length
-)
+const selectedDayItems = computed(() => {
+  if (!selectedDayKey.value) {
+    return []
+  }
 
-const selectedPendingCount = computed(
-  () => selectedDayItems.value.filter((item) => Number(item.status) === 0).length
-)
+  return getContributionsForDateKey(selectedDayKey.value)
+})
 
-const selectedCompletedCount = computed(
-  () => selectedDayItems.value.filter((item) => item.completed).length
-)
+const upcomingItems = computed(() => {
+  const nowUnix = Math.floor(Date.now() / 1000)
+  const filtered = applyContributionFilter(store.visibleContributions.value)
 
-function startOfDay(date) {
-  return new Date(date.getFullYear(), date.getMonth(), date.getDate())
+  return [...filtered]
+    .filter((item) => Number(item.dueDate) >= nowUnix)
+    .sort((a, b) => a.dueDate - b.dueDate)
+    .slice(0, 6)
+})
+
+const calendarStats = computed(() => {
+  const items = monthContributions.value
+
+  return {
+    total: items.length,
+    pending: items.filter((item) => Number(item.status) === 0).length,
+    approved: items.filter((item) => Number(item.status) === 1).length,
+    rejected: items.filter((item) => Number(item.status) === 2).length
+  }
+})
+
+function applyContributionFilter(items) {
+  if (activeFilter.value === 'all') return [...items]
+  if (activeFilter.value === 'pending') {
+    return items.filter((item) => Number(item.status) === 0)
+  }
+  if (activeFilter.value === 'approved') {
+    return items.filter((item) => Number(item.status) === 1)
+  }
+  return items.filter((item) => Number(item.status) === 2)
 }
 
-function isSameDate(a, b) {
-  return (
-    a.getFullYear() === b.getFullYear() &&
-    a.getMonth() === b.getMonth() &&
-    a.getDate() === b.getDate()
-  )
+function buildDateKeyFromDate(date) {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(
+    date.getDate()
+  ).padStart(2, '0')}`
 }
 
-function fromUnixToDate(unixValue) {
-  const value = Number(unixValue)
-  if (!value) return null
-  return new Date(value * 1000)
+function buildDateKeyFromUnix(unixSeconds) {
+  const value = Number(unixSeconds || 0)
+  if (!value) return ''
+  return buildDateKeyFromDate(new Date(value * 1000))
 }
 
-function getItemsForDate(date) {
-  return visibleContributions.value.filter((item) => {
-    const due = fromUnixToDate(item.dueDate)
-    if (!due) return false
-    return isSameDate(startOfDay(due), startOfDay(date))
-  })
+function getContributionsForDateKey(dateKey) {
+  const filtered = applyContributionFilter(store.visibleContributions.value)
+
+  return [...filtered]
+    .filter((item) => buildDateKeyFromUnix(item.dueDate) === dateKey)
+    .sort((a, b) => {
+      if (a.status !== b.status) return a.status - b.status
+      return a.dueDate - b.dueDate
+    })
 }
 
-function selectDay(date) {
-  selectedDate.value = startOfDay(date)
+function previousMonth() {
+  if (currentMonth.value === 0) {
+    currentMonth.value = 11
+    currentYear.value -= 1
+  } else {
+    currentMonth.value -= 1
+  }
+
+  selectedDayKey.value = ''
 }
 
-function goToPreviousMonth() {
-  currentMonth.value = new Date(
-    currentMonth.value.getFullYear(),
-    currentMonth.value.getMonth() - 1,
-    1
-  )
+function nextMonth() {
+  if (currentMonth.value === 11) {
+    currentMonth.value = 0
+    currentYear.value += 1
+  } else {
+    currentMonth.value += 1
+  }
+
+  selectedDayKey.value = ''
 }
 
-function goToNextMonth() {
-  currentMonth.value = new Date(
-    currentMonth.value.getFullYear(),
-    currentMonth.value.getMonth() + 1,
-    1
-  )
+function selectDay(dayKey) {
+  selectedDayKey.value = dayKey
 }
 
-function goToToday() {
-  currentMonth.value = new Date(today.getFullYear(), today.getMonth(), 1)
-  selectedDate.value = startOfDay(today)
-}
-
-function formatDate(unixValue) {
-  const value = Number(unixValue)
+function formatDate(unixSeconds) {
+  const value = Number(unixSeconds || 0)
   if (!value) return '—'
 
   return new Date(value * 1000).toLocaleDateString(undefined, {
@@ -478,76 +176,496 @@ function formatDate(unixValue) {
   })
 }
 
-function shortenAddress(value) {
-  if (!value) return '—'
+function formatAddress(address) {
+  const value = String(address || '')
+  if (value.length < 12) return value
   return `${value.slice(0, 6)}...${value.slice(-4)}`
 }
 
 function statusClass(status) {
-  const numeric = Number(status)
-  if (numeric === 1) return 'approved'
-  if (numeric === 2) return 'rejected'
+  const value = Number(status)
+
+  if (value === 1) return 'approved'
+  if (value === 2) return 'rejected'
   return 'pending'
 }
 
-onMounted(async () => {
-  await init()
-  await loadContributions()
-})
+function countLabel(count) {
+  if (count === 1) return '1 item'
+  return `${count} items`
+}
 </script>
 
+<template>
+  <section class="calendar-page">
+    <div class="hero card">
+      <div>
+        <p class="eyebrow">Calendar Overview</p>
+        <h1>Track contribution deadlines by month</h1>
+        <p class="subtext">
+          Browse upcoming due dates, review what is scheduled this month, and jump to your
+          contributions page to update entries.
+        </p>
+      </div>
+
+      <div class="hero-badges">
+        <span class="hero-badge primary">{{ store.roleLabel.value }}</span>
+        <span class="hero-badge neutral">Reputation: {{ store.reputation.value }}</span>
+      </div>
+    </div>
+
+    <div class="stats-grid">
+      <article class="stat-card card">
+        <span>This Month</span>
+        <strong>{{ calendarStats.total }}</strong>
+      </article>
+
+      <article class="stat-card card pending">
+        <span>Pending</span>
+        <strong>{{ calendarStats.pending }}</strong>
+      </article>
+
+      <article class="stat-card card approved">
+        <span>Approved</span>
+        <strong>{{ calendarStats.approved }}</strong>
+      </article>
+
+      <article class="stat-card card rejected">
+        <span>Rejected</span>
+        <strong>{{ calendarStats.rejected }}</strong>
+      </article>
+    </div>
+
+    <div class="calendar-layout">
+      <article class="card calendar-card">
+        <div class="calendar-toolbar">
+          <div>
+            <p class="section-label">Month View</p>
+            <h2>{{ monthLabel }}</h2>
+          </div>
+
+          <div class="calendar-actions">
+            <div class="filter-group">
+              <button
+                type="button"
+                class="filter-chip"
+                :class="{ active: activeFilter === 'all' }"
+                @click="activeFilter = 'all'"
+              >
+                All
+              </button>
+              <button
+                type="button"
+                class="filter-chip"
+                :class="{ active: activeFilter === 'pending' }"
+                @click="activeFilter = 'pending'"
+              >
+                Pending
+              </button>
+              <button
+                type="button"
+                class="filter-chip"
+                :class="{ active: activeFilter === 'approved' }"
+                @click="activeFilter = 'approved'"
+              >
+                Approved
+              </button>
+              <button
+                type="button"
+                class="filter-chip"
+                :class="{ active: activeFilter === 'rejected' }"
+                @click="activeFilter = 'rejected'"
+              >
+                Rejected
+              </button>
+            </div>
+
+            <div class="month-nav">
+              <button type="button" class="nav-btn" @click="previousMonth">Prev</button>
+              <button type="button" class="nav-btn" @click="nextMonth">Next</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="weekday-row">
+          <span>Sun</span>
+          <span>Mon</span>
+          <span>Tue</span>
+          <span>Wed</span>
+          <span>Thu</span>
+          <span>Fri</span>
+          <span>Sat</span>
+        </div>
+
+        <div v-if="store.isLoadingContributions.value" class="calendar-loading">
+          <h3>Loading calendar…</h3>
+          <p>Please wait while contribution deadlines are loaded.</p>
+        </div>
+
+        <div v-else class="calendar-grid">
+          <button
+            v-for="cell in calendarDays"
+            :key="cell.key"
+            type="button"
+            class="day-cell"
+            :class="{
+              empty: cell.isEmpty,
+              today: cell.isToday,
+              selected: cell.isSelected,
+              hasItems: cell.hasItems
+            }"
+            :disabled="cell.isEmpty"
+            @click="!cell.isEmpty && selectDay(cell.key)"
+          >
+            <template v-if="!cell.isEmpty">
+              <div class="day-number-row">
+                <span class="day-number">{{ cell.day }}</span>
+                <span v-if="cell.items.length" class="day-count">
+                  {{ cell.items.length }}
+                </span>
+              </div>
+
+              <div class="day-preview">
+                <span
+                  v-for="item in cell.items.slice(0, 2)"
+                  :key="item.id"
+                  class="preview-pill"
+                  :class="statusClass(item.status)"
+                >
+                  {{ item.title }}
+                </span>
+
+                <span v-if="cell.items.length > 2" class="preview-more">
+                  +{{ cell.items.length - 2 }} more
+                </span>
+              </div>
+            </template>
+          </button>
+        </div>
+      </article>
+
+      <div class="side-panel">
+        <article class="card panel-card">
+          <div class="panel-header">
+            <div>
+              <p class="section-label">Selected Day</p>
+              <h2>
+                {{ selectedDayKey || 'No day selected' }}
+              </h2>
+            </div>
+          </div>
+
+          <div v-if="!selectedDayKey" class="empty-state">
+            <h3>Select a date</h3>
+            <p>Choose a calendar day to see contribution deadlines for that date.</p>
+          </div>
+
+          <div v-else-if="!selectedDayItems.length" class="empty-state">
+            <h3>No deadlines</h3>
+            <p>There are no contributions due on this date for the current filter.</p>
+          </div>
+
+          <div v-else class="day-list">
+            <article
+              v-for="item in selectedDayItems"
+              :key="item.id"
+              class="deadline-card"
+            >
+              <div class="deadline-top">
+                <div>
+                  <h3>{{ item.title }}</h3>
+                  <p class="meta-row">
+                    <span>{{ item.categoryLabel }}</span>
+                    <span>•</span>
+                    <span>{{ item.statusLabel }}</span>
+                  </p>
+                </div>
+
+                <span class="status-badge" :class="statusClass(item.status)">
+                  {{ item.statusLabel }}
+                </span>
+              </div>
+
+              <p class="description">{{ item.description }}</p>
+
+              <div class="deadline-details">
+                <div class="detail-item">
+                  <span>Due</span>
+                  <strong>{{ formatDate(item.dueDate) }}</strong>
+                </div>
+                <div class="detail-item">
+                  <span>Student</span>
+                  <strong>{{ formatAddress(item.student) }}</strong>
+                </div>
+                <div class="detail-item">
+                  <span>Completed</span>
+                  <strong>{{ item.completed ? 'Yes' : 'No' }}</strong>
+                </div>
+              </div>
+            </article>
+          </div>
+        </article>
+
+        <article class="card panel-card">
+          <div class="panel-header">
+            <div>
+              <p class="section-label">Upcoming Deadlines</p>
+              <h2>Next scheduled contributions</h2>
+            </div>
+
+            <RouterLink to="/contributions" class="panel-link">
+              Open contributions
+            </RouterLink>
+          </div>
+
+          <div v-if="!upcomingItems.length" class="empty-state">
+            <h3>No upcoming items</h3>
+            <p>Add a contribution to start building your calendar schedule.</p>
+          </div>
+
+          <div v-else class="upcoming-list">
+            <article
+              v-for="item in upcomingItems"
+              :key="item.id"
+              class="upcoming-item"
+            >
+              <div>
+                <strong>{{ item.title }}</strong>
+                <p>{{ item.categoryLabel }} • {{ formatDate(item.dueDate) }}</p>
+              </div>
+
+              <span class="upcoming-tag" :class="statusClass(item.status)">
+                {{ item.statusLabel }}
+              </span>
+            </article>
+          </div>
+        </article>
+
+        <article class="card panel-card">
+          <div class="panel-header">
+            <div>
+              <p class="section-label">Month Summary</p>
+              <h2>What is scheduled now</h2>
+            </div>
+          </div>
+
+          <div class="summary-list">
+            <div class="summary-item">
+              <span>Total this month</span>
+              <strong>{{ countLabel(calendarStats.total) }}</strong>
+            </div>
+            <div class="summary-item">
+              <span>Pending</span>
+              <strong>{{ countLabel(calendarStats.pending) }}</strong>
+            </div>
+            <div class="summary-item">
+              <span>Approved</span>
+              <strong>{{ countLabel(calendarStats.approved) }}</strong>
+            </div>
+            <div class="summary-item">
+              <span>Rejected</span>
+              <strong>{{ countLabel(calendarStats.rejected) }}</strong>
+            </div>
+          </div>
+        </article>
+      </div>
+    </div>
+  </section>
+</template>
+
 <style scoped>
-.content-header-eyebrow {
-  margin: 0 0 8px;
-  color: #fbbf24;
-  font-size: 0.82rem;
-  font-weight: 800;
-  letter-spacing: 0.12em;
+.calendar-page {
+  display: grid;
+  gap: 18px;
+}
+
+.card {
+  background: rgba(255, 255, 255, 0.92);
+  border: 1px solid rgba(148, 163, 184, 0.16);
+  border-radius: 24px;
+  padding: 22px;
+  box-shadow: 0 18px 36px rgba(15, 23, 42, 0.06);
+}
+
+.hero {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 18px;
+}
+
+.eyebrow,
+.section-label {
+  margin: 0 0 6px;
   text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 0.76rem;
+  font-weight: 800;
+  color: #6366f1;
+}
+
+.hero h1,
+.calendar-card h2,
+.panel-card h2 {
+  margin: 0;
+}
+
+.subtext {
+  margin: 10px 0 0;
+  color: #64748b;
+  max-width: 760px;
+}
+
+.hero-badges {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.hero-badge {
+  padding: 10px 14px;
+  border-radius: 999px;
+  font-size: 0.88rem;
+  font-weight: 800;
+}
+
+.hero-badge.primary {
+  background: #e0e7ff;
+  color: #312e81;
+}
+
+.hero-badge.neutral {
+  background: #e2e8f0;
+  color: #334155;
+}
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.stat-card {
+  display: grid;
+  gap: 6px;
+}
+
+.stat-card span {
+  color: #64748b;
+  font-size: 0.85rem;
+}
+
+.stat-card strong {
+  font-size: 1.45rem;
+}
+
+.stat-card.pending {
+  background: #fffbeb;
+}
+
+.stat-card.approved {
+  background: #f0fdf4;
+}
+
+.stat-card.rejected {
+  background: #fef2f2;
 }
 
 .calendar-layout {
   display: grid;
-  grid-template-columns: minmax(0, 1.6fr) minmax(320px, 0.9fr);
-  gap: 20px;
+  grid-template-columns: minmax(0, 1.5fr) minmax(320px, 0.9fr);
+  gap: 16px;
 }
 
-.calendar-panel,
-.sidebar-panel {
-  min-height: 100%;
+.calendar-card,
+.panel-card {
+  display: grid;
+  gap: 16px;
 }
 
-.calendar-nav {
+.calendar-toolbar,
+.panel-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+  align-items: start;
+}
+
+.calendar-actions {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.filter-group {
   display: flex;
   gap: 10px;
   flex-wrap: wrap;
 }
 
+.filter-chip {
+  border: 0;
+  border-radius: 999px;
+  padding: 10px 14px;
+  font: inherit;
+  font-weight: 700;
+  background: #e2e8f0;
+  color: #334155;
+  cursor: pointer;
+}
+
+.filter-chip.active {
+  background: #4f46e5;
+  color: white;
+}
+
+.month-nav {
+  display: flex;
+  gap: 10px;
+}
+
 .nav-btn {
-  min-width: 84px;
-}
-
-.month-heading {
-  margin-bottom: 14px;
-}
-
-.month-heading h4 {
-  margin: 0;
-  font-size: 1.05rem;
+  border: 0;
+  border-radius: 14px;
+  padding: 10px 14px;
+  font: inherit;
+  font-weight: 700;
+  background: #eef2ff;
+  color: #3730a3;
+  cursor: pointer;
 }
 
 .weekday-row {
   display: grid;
   grid-template-columns: repeat(7, minmax(0, 1fr));
   gap: 10px;
-  margin-bottom: 10px;
+  color: #64748b;
+  font-size: 0.84rem;
+  font-weight: 700;
 }
 
 .weekday-row span {
   text-align: center;
-  color: #94a3b8;
-  font-size: 0.85rem;
-  font-weight: 700;
+  padding: 4px 0;
+}
+
+.calendar-loading,
+.empty-state {
+  text-align: center;
+  padding: 18px 12px;
+}
+
+.calendar-loading h3,
+.empty-state h3 {
+  margin: 0 0 8px;
+}
+
+.calendar-loading p,
+.empty-state p {
+  margin: 0;
+  color: #64748b;
 }
 
 .calendar-grid {
@@ -556,177 +674,280 @@ onMounted(async () => {
   gap: 10px;
 }
 
-.calendar-cell {
-  min-height: 116px;
-  border-radius: 16px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  background: rgba(255, 255, 255, 0.035);
+.day-cell {
+  min-height: 128px;
+  border: 1px solid rgba(226, 232, 240, 0.95);
+  border-radius: 18px;
   padding: 10px;
+  background: #f8fafc;
   text-align: left;
-  color: inherit;
   cursor: pointer;
-  transition: transform 0.16s ease, border-color 0.16s ease, background 0.16s ease;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  transition: transform 0.16s ease, box-shadow 0.16s ease, border-color 0.16s ease;
 }
 
-.calendar-cell:hover {
+.day-cell:hover:not(:disabled) {
   transform: translateY(-1px);
-  border-color: rgba(251, 191, 36, 0.3);
+  box-shadow: 0 12px 24px rgba(15, 23, 42, 0.05);
 }
 
-.calendar-cell.muted {
-  opacity: 0.45;
+.day-cell.empty {
+  background: transparent;
+  border-style: dashed;
+  cursor: default;
 }
 
-.calendar-cell.today {
-  border-color: rgba(251, 191, 36, 0.55);
-  box-shadow: inset 0 0 0 1px rgba(251, 191, 36, 0.18);
+.day-cell.today {
+  border-color: rgba(99, 102, 241, 0.45);
 }
 
-.calendar-cell.selected {
-  background: rgba(251, 191, 36, 0.08);
-  border-color: rgba(251, 191, 36, 0.45);
+.day-cell.selected {
+  border-color: #4f46e5;
+  background: #eef2ff;
 }
 
-.calendar-cell.has-items .day-number {
-  color: #fbbf24;
+.day-cell.hasItems {
+  background: #fcfdff;
 }
 
-.cell-top {
+.day-number-row {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: 8px;
-  margin-bottom: 10px;
 }
 
 .day-number {
   font-weight: 800;
-  font-size: 0.95rem;
+  color: #0f172a;
 }
 
-.item-count {
-  min-width: 22px;
-  height: 22px;
+.day-count {
+  min-width: 24px;
+  height: 24px;
   border-radius: 999px;
   display: inline-grid;
   place-items: center;
-  background: rgba(59, 130, 246, 0.18);
-  color: #bfdbfe;
-  font-size: 0.75rem;
+  background: #4f46e5;
+  color: white;
+  font-size: 0.76rem;
   font-weight: 800;
 }
 
-.cell-items {
+.day-preview {
   display: grid;
   gap: 6px;
 }
 
-.cell-pill,
-.cell-more {
-  font-size: 0.72rem;
-  line-height: 1.2;
-  border-radius: 999px;
+.preview-pill,
+.preview-more {
+  display: block;
   padding: 6px 8px;
-  overflow: hidden;
+  border-radius: 12px;
+  font-size: 0.74rem;
   white-space: nowrap;
+  overflow: hidden;
   text-overflow: ellipsis;
 }
 
-.cell-pill.pending {
-  background: rgba(245, 158, 11, 0.18);
-  color: #fde68a;
+.preview-pill.pending {
+  background: #fef3c7;
+  color: #92400e;
 }
 
-.cell-pill.approved {
-  background: rgba(34, 197, 94, 0.16);
-  color: #bbf7d0;
+.preview-pill.approved {
+  background: #dcfce7;
+  color: #166534;
 }
 
-.cell-pill.rejected {
-  background: rgba(239, 68, 68, 0.16);
-  color: #fecaca;
+.preview-pill.rejected {
+  background: #fee2e2;
+  color: #991b1b;
 }
 
-.cell-more {
-  background: rgba(148, 163, 184, 0.14);
-  color: #cbd5e1;
+.preview-more {
+  background: #e2e8f0;
+  color: #475569;
+  font-weight: 700;
 }
 
-.sidebar-stats {
+.side-panel {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.day-list,
+.upcoming-list,
+.summary-list {
+  display: grid;
   gap: 12px;
-  margin-bottom: 16px;
 }
 
-.agenda-list {
-  display: grid;
-  gap: 14px;
-}
-
-.agenda-card {
-  border-radius: 18px;
+.deadline-card,
+.upcoming-item,
+.summary-item {
   padding: 16px;
-  background: rgba(255, 255, 255, 0.035);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 18px;
+  background: #f8fafc;
+  border: 1px solid rgba(148, 163, 184, 0.14);
 }
 
-.agenda-top {
+.deadline-card {
+  display: grid;
+  gap: 12px;
+}
+
+.deadline-top {
   display: flex;
   justify-content: space-between;
   gap: 12px;
-  align-items: flex-start;
-  flex-wrap: wrap;
+  align-items: start;
 }
 
-.agenda-top h4 {
+.deadline-top h3 {
   margin: 0;
   font-size: 1rem;
 }
 
-@media (max-width: 1080px) {
+.meta-row {
+  margin: 8px 0 0;
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  color: #64748b;
+  font-size: 0.9rem;
+}
+
+.description {
+  margin: 0;
+  color: #334155;
+  line-height: 1.65;
+}
+
+.deadline-details {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.detail-item {
+  padding: 12px 14px;
+  border-radius: 16px;
+  background: white;
+  border: 1px solid rgba(148, 163, 184, 0.12);
+}
+
+.detail-item span {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 0.78rem;
+  color: #64748b;
+}
+
+.upcoming-item {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+}
+
+.upcoming-item p {
+  margin: 6px 0 0;
+  color: #64748b;
+}
+
+.upcoming-tag,
+.status-badge {
+  padding: 7px 12px;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.upcoming-tag.pending,
+.status-badge.pending {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.upcoming-tag.approved,
+.status-badge.approved {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.upcoming-tag.rejected,
+.status-badge.rejected {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.summary-item {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+}
+
+.summary-item span {
+  color: #64748b;
+}
+
+.panel-link {
+  text-decoration: none;
+  font-weight: 700;
+  color: #4f46e5;
+}
+
+.panel-link:hover {
+  text-decoration: underline;
+}
+
+@media (max-width: 1280px) {
   .calendar-layout {
     grid-template-columns: 1fr;
   }
 }
 
-@media (max-width: 760px) {
-  .calendar-nav {
-    width: 100%;
+@media (max-width: 980px) {
+  .stats-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  .calendar-nav > * {
-    flex: 1 1 0;
-  }
-
-  .weekday-row,
   .calendar-grid {
-    gap: 6px;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  .calendar-cell {
-    min-height: 92px;
-    padding: 8px;
-  }
-
-  .sidebar-stats {
-    grid-template-columns: 1fr;
+  .weekday-row {
+    display: none;
   }
 }
 
-@media (max-width: 560px) {
-  .weekday-row span {
-    font-size: 0.72rem;
+@media (max-width: 720px) {
+  .card {
+    padding: 18px;
+    border-radius: 20px;
   }
 
-  .day-number {
-    font-size: 0.86rem;
+  .hero,
+  .calendar-toolbar,
+  .panel-header,
+  .deadline-top,
+  .upcoming-item {
+    flex-direction: column;
   }
 
-  .cell-pill,
-  .cell-more {
-    font-size: 0.66rem;
-    padding: 5px 6px;
+  .hero-badges,
+  .calendar-actions {
+    justify-content: flex-start;
+  }
+
+  .stats-grid,
+  .deadline-details,
+  .calendar-grid {
+    grid-template-columns: 1fr;
   }
 }
 </style>

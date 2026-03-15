@@ -1,13 +1,15 @@
 {
   "name": "taskbit-frontend",
-  "version": "0.0.0",
+  "version": "1.0.0",
   "private": true,
   "type": "module",
+  "description": "TaskBit blockchain-based academic contribution tracker frontend",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "clean": "rm -rf node_modules package-lock.json",
+    "clean": "node -e \"const fs=require('fs'); ['node_modules','package-lock.json','dist'].forEach(p=>fs.rmSync(p,{recursive:true,force:true}))\"",
+    "reinstall": "npm run clean && npm install",
     "lint": "run-s lint:*",
     "lint:oxlint": "oxlint . --fix",
     "lint:eslint": "eslint . --fix --cache"

@@ -37,12 +37,7 @@ export function getContributionStatusLabel(statusValue) {
 
 function normalizeCategoryValue(category) {
   const numericCategory = Number(category)
-
-  if (Number.isNaN(numericCategory)) {
-    return 5
-  }
-
-  return numericCategory
+  return Number.isNaN(numericCategory) ? 5 : numericCategory
 }
 
 function normalizeDueDateToUnix(dueDate) {
@@ -54,29 +49,55 @@ function normalizeDueDateToUnix(dueDate) {
   return Number.isNaN(parsed.getTime()) ? 0 : Math.floor(parsed.getTime() / 1000)
 }
 
+function toNumber(value, fallback = 0) {
+  try {
+    return Number(value ?? fallback)
+  } catch {
+    return fallback
+  }
+}
+
 function mapContractContribution(contribution) {
   const categoryValue = normalizeCategoryValue(contribution.category)
-  const statusValue = Number(contribution.status || 0)
-  const dueDate = Number(contribution.dueDate || 0)
+  const statusValue = toNumber(contribution.status, 0)
+  const dueDate = toNumber(contribution.dueDate, 0)
 
   return {
-    id: Number(contribution.id),
+    id: toNumber(contribution.id),
     student: contribution.student,
     title: contribution.title,
     category: categoryValue,
     categoryLabel: getContributionCategoryLabel(categoryValue),
     description: contribution.description,
     completed: Boolean(contribution.completed),
-    createdAt: Number(contribution.createdAt || 0),
+    createdAt: toNumber(contribution.createdAt, 0),
     dueDate,
     deleted: Boolean(contribution.deleted),
     nftMinted: Boolean(contribution.nftMinted),
     status: statusValue,
     statusLabel: getContributionStatusLabel(statusValue),
-    pointsAwarded: Number(contribution.pointsAwarded || 0),
+    pointsAwarded: toNumber(contribution.pointsAwarded, 0),
     reviewedBy: contribution.reviewedBy,
-    reviewedAt: Number(contribution.reviewedAt || 0)
+    reviewedAt: toNumber(contribution.reviewedAt, 0)
   }
+}
+
+function sortContributions(list) {
+  return [...list].sort((a, b) => {
+    if (a.status !== b.status) {
+      return a.status - b.status
+    }
+
+    if (a.completed !== b.completed) {
+      return a.completed ? 1 : -1
+    }
+
+    if (a.dueDate !== b.dueDate) {
+      return a.dueDate - b.dueDate
+    }
+
+    return b.createdAt - a.createdAt
+  })
 }
 
 function buildExplorerUrl(txHash) {
@@ -101,34 +122,39 @@ async function finalizeTransaction(tx) {
 export async function fetchMyContributions(contract) {
   const contributions = await contract.getMyContributions()
 
-  return contributions
-    .filter((contribution) => !contribution.deleted)
-    .map(mapContractContribution)
-    .sort((a, b) => {
-      if (a.status !== b.status) {
-        return a.status - b.status
-      }
+  return sortContributions(
+    contributions
+      .map(mapContractContribution)
+      .filter((contribution) => !contribution.deleted)
+  )
+}
 
-      if (a.completed !== b.completed) {
-        return a.completed ? 1 : -1
-      }
+export async function fetchAllContributions(contract) {
+  const contributions = await contract.getAllContributions()
 
-      if (a.dueDate !== b.dueDate) {
-        return a.dueDate - b.dueDate
-      }
+  return sortContributions(
+    contributions
+      .map(mapContractContribution)
+      .filter((contribution) => !contribution.deleted)
+  )
+}
 
-      return b.createdAt - a.createdAt
-    })
+export async function fetchPendingContributions(contract) {
+  const contributions = await fetchAllContributions(contract)
+
+  return contributions.filter(
+    (contribution) => !contribution.deleted && contribution.status === 0
+  )
 }
 
 export async function fetchMyContributionCount(contract) {
-  const count = await contract.getMyContributionCount()
-  return Number(count)
+  const contributions = await contract.getMyContributions()
+  return contributions.filter((contribution) => !contribution.deleted).length
 }
 
 export async function fetchMyReputation(contract) {
   const value = await contract.getMyReputation()
-  return Number(value)
+  return toNumber(value, 0)
 }
 
 export async function checkReviewerRole(contract, account) {
@@ -219,68 +245,60 @@ export function getReadableBlockchainError(error) {
     return 'Wrong network. Please switch MetaMask to Sepolia.'
   }
 
-  if (message.includes('title cannot be empty')) {
+  if (message.includes('no_title')) {
     return 'Contribution title cannot be empty.'
   }
 
-  if (message.includes('description cannot be empty')) {
+  if (message.includes('no_desc')) {
     return 'Contribution description cannot be empty.'
   }
 
-  if (message.includes('due date cannot be in the past')) {
-    return 'Due date cannot be in the past.'
+  if (message.includes('bad_due')) {
+    return 'Please select a valid due date that is not in the past.'
   }
 
-  if (message.includes('due date is required')) {
-    return 'Please select a due date.'
+  if (message.includes('bad_addr')) {
+    return 'Invalid wallet address.'
   }
 
-  if (
-    message.includes('only owner can call this function') ||
-    message.includes('caller is not the owner') ||
-    message.includes('ownableunauthorizedaccount')
-  ) {
-    return 'Only the contract owner can perform this action.'
-  }
-
-  if (
-    message.includes('only admin or owner') ||
-    message.includes('not admin or owner') ||
-    message.includes('not authorized')
-  ) {
+  if (message.includes('no_admin')) {
     return 'Only the owner or an admin can perform this action.'
   }
 
-  if (message.includes('not authorized reviewer')) {
+  if (message.includes('no_reviewer')) {
     return 'Only the owner, admin, or professor can review contributions.'
   }
 
-  if (message.includes('contribution already reviewed')) {
+  if (message.includes('no_contrib')) {
+    return 'Contribution does not exist.'
+  }
+
+  if (message.includes('not_owner')) {
+    return 'You can only manage your own contributions.'
+  }
+
+  if (message.includes('deleted')) {
+    return 'This contribution is already deleted.'
+  }
+
+  if (message.includes('not_pending')) {
+    return 'Only pending contributions can be updated or deleted.'
+  }
+
+  if (message.includes('reviewed')) {
     return 'This contribution has already been reviewed.'
   }
 
-  if (message.includes('only pending contributions can be deleted')) {
-    return 'Only pending contributions can be deleted.'
-  }
-
-  if (message.includes('rejected contribution cannot be toggled')) {
-    return 'Rejected contributions cannot be updated.'
-  }
-
-  if (message.includes('contribution must be completed first')) {
+  if (message.includes('not_done')) {
     return 'Complete the contribution first before minting the NFT.'
   }
 
-  if (message.includes('contribution must be approved first')) {
+  if (message.includes('not_approved')) {
     return 'Contribution must be approved before minting the NFT.'
   }
 
-  if (message.includes('nft already minted for this contribution')) {
+  if (message.includes('minted')) {
     return 'NFT has already been minted for this contribution.'
-  }
-
-  if (message.includes('not your contribution')) {
-    return 'You can only manage your own contributions.'
   }
 
   if (!rawMessage && error?.code === 'CALL_EXCEPTION') {
