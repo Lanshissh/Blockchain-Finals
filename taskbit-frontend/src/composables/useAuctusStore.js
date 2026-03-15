@@ -24,6 +24,7 @@ import {
   approveContributionById,
   rejectContributionById,
   mintContributionNft,
+  fetchMyCertificates,
   setProfessorRole,
   setAdminRole,
   getReadableBlockchainError,
@@ -50,6 +51,7 @@ export function useAuctusStore() {
   const latestTxUrl = ref('')
   const contributionAccessMode = ref('mine')
   const reviewAccessError = ref('')
+  const certificates = ref([])
 
   const contributionForm = ref({
     title: '',
@@ -61,6 +63,7 @@ export function useAuctusStore() {
   const contributions = ref([])
   const contributionCount = ref(0)
   const reputation = ref(0)
+  const certificateCount = computed(() => certificates.value.length)
 
   const isReviewer = ref(false)
   const isProfessor = ref(false)
@@ -225,6 +228,7 @@ export function useAuctusStore() {
     contributions.value = []
     contributionCount.value = 0
     reputation.value = 0
+    certificates.value = []
     contributionAccessMode.value = 'mine'
     reviewAccessError.value = ''
     resetRoles()
@@ -257,6 +261,7 @@ export function useAuctusStore() {
         contributions.value = []
         contributionCount.value = 0
         reputation.value = 0
+      certificates.value = []
         contributionAccessMode.value = 'mine'
         resetRoles()
         walletStatus.value = `Wrong network. Please switch MetaMask to ${APP_NETWORK.name}.`
@@ -349,6 +354,7 @@ export function useAuctusStore() {
       contributions.value = []
       contributionCount.value = 0
       reputation.value = 0
+      certificates.value = []
       contributionAccessMode.value = 'mine'
       reviewAccessError.value = ''
       resetRoles()
@@ -367,6 +373,7 @@ export function useAuctusStore() {
 
       reputation.value = Number(reputationValue || 0)
       await applyContributionSnapshot(contributionResult)
+      await loadCertificates()
 
       if (contributionResult.usedFallback) {
         txStatus.value =
@@ -377,6 +384,7 @@ export function useAuctusStore() {
       contributions.value = []
       contributionCount.value = 0
       reputation.value = 0
+      certificates.value = []
       contributionAccessMode.value = 'mine'
       reviewAccessError.value = ''
 
@@ -391,11 +399,28 @@ export function useAuctusStore() {
     }
   }
 
+  async function loadCertificates() {
+    if (!contract) {
+      certificates.value = []
+      return []
+    }
+
+    try {
+      certificates.value = await fetchMyCertificates(contract, myContributions.value)
+      return certificates.value
+    } catch (error) {
+      console.error('Failed to load certificates:', error)
+      certificates.value = []
+      return []
+    }
+  }
+
   async function loadReviewContributions() {
     if (!contract) {
       contributions.value = []
       contributionCount.value = 0
       reputation.value = 0
+      certificates.value = []
       contributionAccessMode.value = 'mine'
       reviewAccessError.value = ''
       resetRoles()
@@ -418,6 +443,8 @@ export function useAuctusStore() {
           usedFallback: false,
           fallbackReason: ''
         })
+
+        await loadCertificates()
       } catch (error) {
         if (!isUnauthorizedReadError(error)) {
           throw error
@@ -432,6 +459,8 @@ export function useAuctusStore() {
           fallbackReason: error?.reason || error?.shortMessage || error?.message || ''
         })
 
+        await loadCertificates()
+
         txStatus.value =
           'This wallet cannot read getAllContributions() from the deployed contract yet. Review page is showing only your own submissions.'
       }
@@ -440,6 +469,7 @@ export function useAuctusStore() {
       contributions.value = []
       contributionCount.value = 0
       reputation.value = 0
+      certificates.value = []
       contributionAccessMode.value = 'mine'
       reviewAccessError.value = ''
 
@@ -852,6 +882,8 @@ export function useAuctusStore() {
     completedContributions,
     contributionCount,
     reputation,
+    certificates,
+    certificateCount,
     contributionAccessMode,
     reviewAccessError,
     canViewAllContributions,
@@ -873,6 +905,7 @@ export function useAuctusStore() {
     restoreWalletSession,
     switchNetwork,
     loadContributions,
+    loadCertificates,
     loadReviewContributions,
     refreshPendingReviewList,
     addContribution,

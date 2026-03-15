@@ -1,10 +1,13 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
-import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
+import "@openzeppelin/contracts/utils/Strings.sol";
 
 contract TaskBit is ERC721, Ownable {
+    using Strings for uint256;
+
     enum ContributionCategory {
         Paper,
         Seminar,
@@ -39,84 +42,46 @@ contract TaskBit is ERC721, Ownable {
 
     mapping(uint256 => Contribution) private contributions;
     mapping(address => uint256[]) private userContributionIds;
+
     mapping(address => bool) public admins;
     mapping(address => bool) public professors;
+
     mapping(address => uint256) public reputation;
+
     mapping(uint256 => uint256) public tokenToContributionId;
+    mapping(address => uint256[]) private ownerCertificates;
 
     uint256 public nextContributionId;
     uint256 public nextTokenId;
 
-    event AdminUpdated(address indexed account, bool isActive);
-    event ProfessorUpdated(address indexed account, bool isActive);
-
-    event ContributionCreated(
-        uint256 indexed contributionId,
-        address indexed student,
-        string title,
-        ContributionCategory category,
-        string description,
-        uint256 createdAt,
-        uint256 dueDate
-    );
-
-    event ContributionUpdated(
-        uint256 indexed contributionId,
-        address indexed student,
-        bool completed
-    );
-
-    event ContributionDeleted(
-        uint256 indexed contributionId,
-        address indexed student
-    );
-
-    event ContributionApproved(
-        uint256 indexed contributionId,
-        address indexed student,
-        address indexed reviewer,
-        uint256 pointsAwarded
-    );
-
-    event ContributionRejected(
-        uint256 indexed contributionId,
-        address indexed student,
-        address indexed reviewer
-    );
-
-    event ContributionNFTMinted(
-        address indexed student,
-        uint256 indexed contributionId,
-        uint256 indexed tokenId
-    );
+    event ContributionCreated(uint256 id, address student);
+    event ContributionApproved(uint256 id, address reviewer);
+    event ContributionRejected(uint256 id, address reviewer);
+    event ContributionNFTMinted(address student, uint256 contributionId, uint256 tokenId);
 
     modifier onlyAdminOrOwner() {
-        require(_isAdminOrOwner(msg.sender), "NO_ADMIN");
+        require(owner() == msg.sender || admins[msg.sender], "NO_ADMIN");
         _;
     }
 
     modifier onlyReviewer() {
-        require(_isReviewer(msg.sender), "NO_REVIEWER");
-        _;
-    }
-
-    modifier contributionExists(uint256 contributionId) {
-        require(contributions[contributionId].student != address(0), "NO_CONTRIB");
+        require(
+            owner() == msg.sender ||
+            admins[msg.sender] ||
+            professors[msg.sender],
+            "NO_REVIEWER"
+        );
         _;
     }
 
     constructor() ERC721("TaskBit Achievement", "TBA") Ownable(msg.sender) {}
 
-    function setAdmin(address account, bool isActive) external onlyOwner {
-        require(account != address(0), "BAD_ADDR");
-        admins[account] = isActive;
-        emit AdminUpdated(account, isActive);
+    function setAdmin(address account, bool active) external onlyOwner {
+        admins[account] = active;
     }
 
-    function setProfessor(address account, bool isActive) external onlyAdminOrOwner {
-        require(account != address(0), "BAD_ADDR");
-        professors[account] = isActive;
-        emit ProfessorUpdated(account, isActive);
+    function setProfessor(address account, bool active) external onlyAdminOrOwner {
+        professors[account] = active;
     }
 
     function addContribution(
@@ -125,25 +90,18 @@ contract TaskBit is ERC721, Ownable {
         string calldata description,
         uint256 dueDate
     ) external {
-        require(bytes(title).length > 0, "NO_TITLE");
-        require(bytes(description).length > 0, "NO_DESC");
-        require(dueDate > 0, "BAD_DUE");
 
-        uint256 normalizedDueDate = _normalizeDueDate(dueDate);
-        require(normalizedDueDate >= block.timestamp, "BAD_DUE");
+        uint256 id = nextContributionId++;
 
-        uint256 contributionId = nextContributionId;
-        nextContributionId++;
-
-        contributions[contributionId] = Contribution({
-            id: contributionId,
+        contributions[id] = Contribution({
+            id: id,
             student: msg.sender,
             title: title,
             category: category,
             description: description,
             completed: false,
             createdAt: block.timestamp,
-            dueDate: normalizedDueDate,
+            dueDate: dueDate,
             deleted: false,
             nftMinted: false,
             status: ContributionStatus.Pending,
@@ -152,146 +110,106 @@ contract TaskBit is ERC721, Ownable {
             reviewedAt: 0
         });
 
-        userContributionIds[msg.sender].push(contributionId);
+        userContributionIds[msg.sender].push(id);
 
-        emit ContributionCreated(
-            contributionId,
-            msg.sender,
-            title,
-            category,
-            description,
-            block.timestamp,
-            normalizedDueDate
-        );
+        emit ContributionCreated(id, msg.sender);
     }
 
-    function toggleContribution(uint256 contributionId)
-        external
-        contributionExists(contributionId)
-    {
-        Contribution storage contribution = contributions[contributionId];
+    function toggleContribution(uint256 id) external {
 
-        require(contribution.student == msg.sender, "NOT_OWNER");
-        require(!contribution.deleted, "DELETED");
-        require(contribution.status == ContributionStatus.Pending, "NOT_PENDING");
+        Contribution storage c = contributions[id];
 
-        contribution.completed = !contribution.completed;
+        require(c.student == msg.sender, "NOT_OWNER");
+        require(!c.deleted, "DELETED");
 
-        emit ContributionUpdated(contributionId, msg.sender, contribution.completed);
+        c.completed = !c.completed;
+
+        if (c.completed) {
+            _mintIfEligible(id);
+        }
     }
 
-    function approveContribution(uint256 contributionId, uint256 points)
+    function approveContribution(uint256 id, uint256 points)
         external
         onlyReviewer
-        contributionExists(contributionId)
     {
-        Contribution storage contribution = contributions[contributionId];
 
-        require(!contribution.deleted, "DELETED");
-        require(contribution.status == ContributionStatus.Pending, "REVIEWED");
+        Contribution storage c = contributions[id];
 
-        contribution.status = ContributionStatus.Approved;
-        contribution.pointsAwarded = points;
-        contribution.reviewedBy = msg.sender;
-        contribution.reviewedAt = block.timestamp;
+        require(!c.deleted, "DELETED");
+        require(c.status == ContributionStatus.Pending, "REVIEWED");
 
-        reputation[contribution.student] += points;
+        c.status = ContributionStatus.Approved;
+        c.pointsAwarded = points;
+        c.reviewedBy = msg.sender;
+        c.reviewedAt = block.timestamp;
 
-        emit ContributionApproved(
-            contributionId,
-            contribution.student,
-            msg.sender,
-            points
-        );
+        reputation[c.student] += points;
+
+        emit ContributionApproved(id, msg.sender);
+
+        _mintIfEligible(id);
     }
 
-    function rejectContribution(uint256 contributionId)
+    function rejectContribution(uint256 id)
         external
         onlyReviewer
-        contributionExists(contributionId)
     {
-        Contribution storage contribution = contributions[contributionId];
 
-        require(!contribution.deleted, "DELETED");
-        require(contribution.status == ContributionStatus.Pending, "REVIEWED");
+        Contribution storage c = contributions[id];
 
-        contribution.status = ContributionStatus.Rejected;
-        contribution.reviewedBy = msg.sender;
-        contribution.reviewedAt = block.timestamp;
+        require(c.status == ContributionStatus.Pending, "REVIEWED");
 
-        emit ContributionRejected(
-            contributionId,
-            contribution.student,
-            msg.sender
-        );
+        c.status = ContributionStatus.Rejected;
+        c.reviewedBy = msg.sender;
+        c.reviewedAt = block.timestamp;
+
+        emit ContributionRejected(id, msg.sender);
     }
 
-    function mintContributionNFT(uint256 contributionId)
-        external
-        contributionExists(contributionId)
-    {
-        Contribution storage contribution = contributions[contributionId];
+    function _mintIfEligible(uint256 id) internal {
 
-        require(contribution.student == msg.sender, "NOT_OWNER");
-        require(!contribution.deleted, "DELETED");
-        require(contribution.completed, "NOT_DONE");
-        require(contribution.status == ContributionStatus.Approved, "NOT_APPROVED");
-        require(!contribution.nftMinted, "MINTED");
+        Contribution storage c = contributions[id];
 
-        uint256 tokenId = nextTokenId;
-        nextTokenId++;
+        if (
+            c.completed &&
+            c.status == ContributionStatus.Approved &&
+            !c.nftMinted
+        ) {
 
-        contribution.nftMinted = true;
-        tokenToContributionId[tokenId] = contributionId;
+            uint256 tokenId = nextTokenId++;
 
-        _safeMint(msg.sender, tokenId);
+            c.nftMinted = true;
 
-        emit ContributionNFTMinted(msg.sender, contributionId, tokenId);
+            tokenToContributionId[tokenId] = id;
+
+            ownerCertificates[c.student].push(tokenId);
+
+            _safeMint(c.student, tokenId);
+
+            emit ContributionNFTMinted(c.student, id, tokenId);
+        }
     }
 
-    function deleteContribution(uint256 contributionId)
-        external
-        contributionExists(contributionId)
-    {
-        Contribution storage contribution = contributions[contributionId];
-
-        require(contribution.student == msg.sender, "NOT_OWNER");
-        require(!contribution.deleted, "DELETED");
-        require(contribution.status == ContributionStatus.Pending, "NOT_PENDING");
-
-        contribution.deleted = true;
-
-        emit ContributionDeleted(contributionId, msg.sender);
-    }
-
-    function getContribution(uint256 contributionId)
+    function getContribution(uint256 id)
         external
         view
-        contributionExists(contributionId)
         returns (Contribution memory)
     {
-        return contributions[contributionId];
+        return contributions[id];
     }
 
-    function getMyContributions() external view returns (Contribution[] memory) {
+    function getMyContributions()
+        external
+        view
+        returns (Contribution[] memory)
+    {
         uint256[] memory ids = userContributionIds[msg.sender];
-        uint256 activeCount = 0;
+
+        Contribution[] memory result = new Contribution[](ids.length);
 
         for (uint256 i = 0; i < ids.length; i++) {
-            if (!contributions[ids[i]].deleted) {
-                activeCount++;
-            }
-        }
-
-        Contribution[] memory result = new Contribution[](activeCount);
-        uint256 index = 0;
-
-        for (uint256 i = 0; i < ids.length; i++) {
-            Contribution memory contribution = contributions[ids[i]];
-            if (!contribution.deleted) {
-                result[index] = contribution;
-                index++;
-            }
+            result[i] = contributions[ids[i]];
         }
 
         return result;
@@ -303,52 +221,45 @@ contract TaskBit is ERC721, Ownable {
         onlyReviewer
         returns (Contribution[] memory)
     {
-        uint256 activeCount = 0;
+        Contribution[] memory result = new Contribution[](nextContributionId);
 
         for (uint256 i = 0; i < nextContributionId; i++) {
-            if (
-                contributions[i].student != address(0) &&
-                !contributions[i].deleted
-            ) {
-                activeCount++;
-            }
-        }
-
-        Contribution[] memory result = new Contribution[](activeCount);
-        uint256 index = 0;
-
-        for (uint256 i = 0; i < nextContributionId; i++) {
-            Contribution memory contribution = contributions[i];
-            if (
-                contribution.student != address(0) &&
-                !contribution.deleted
-            ) {
-                result[index] = contribution;
-                index++;
-            }
+            result[i] = contributions[i];
         }
 
         return result;
     }
 
-    function getMyReputation() external view returns (uint256) {
-        return reputation[msg.sender];
+    function getMyCertificates()
+        external
+        view
+        returns (uint256[] memory)
+    {
+        return ownerCertificates[msg.sender];
     }
 
-    function isReviewer(address account) external view returns (bool) {
-        return _isReviewer(account);
-    }
+    function tokenURI(uint256 tokenId)
+        public
+        view
+        override
+        returns (string memory)
+    {
+        _requireOwned(tokenId);
 
-    function _isAdminOrOwner(address account) internal view returns (bool) {
-        return owner() == account || admins[account];
-    }
+        uint256 cid = tokenToContributionId[tokenId];
 
-    function _isReviewer(address account) internal view returns (bool) {
-        return owner() == account || admins[account] || professors[account];
-    }
+        Contribution memory c = contributions[cid];
 
-    function _normalizeDueDate(uint256 dueDate) internal pure returns (uint256) {
-        uint256 startOfDay = (dueDate / 1 days) * 1 days;
-        return startOfDay + 1 days - 1;
+        return string(
+            abi.encodePacked(
+                "data:application/json;utf8,{",
+                '"name":"', c.title, ' Certificate",',
+                '"description":"TaskBit blockchain academic certificate",',
+                '"attributes":[',
+                '{"trait_type":"Contribution ID","value":"', c.id.toString(), '"},',
+                '{"trait_type":"Points","value":"', c.pointsAwarded.toString(), '"}',
+                "]}"
+            )
+        );
     }
 }

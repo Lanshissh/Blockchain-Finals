@@ -4,6 +4,7 @@ import CalendarPage from '../views/CalendarPage.vue'
 import ContributionsPage from '../views/ContributionsPage.vue'
 import LoginPage from '../views/LoginPage.vue'
 import ProfilePage from '../views/ProfilePage.vue'
+import CertificatesPage from '../views/CertificatesPage.vue'
 import ReviewPage from '../views/ReviewPage.vue'
 import AdminPage from '../views/AdminPage.vue'
 import { useAuctusStore } from '../composables/useAuctusStore'
@@ -79,6 +80,15 @@ const routes = [
     meta: {
       requiresAuth: true,
       title: 'Profile'
+    }
+  },
+  {
+    path: '/certificates',
+    name: 'certificates',
+    component: CertificatesPage,
+    meta: {
+      requiresAuth: true,
+      title: 'Certificates'
     }
   },
   {
