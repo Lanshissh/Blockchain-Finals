@@ -1,5 +1,5 @@
 <script setup>
-import { computed, onMounted } from 'vue'
+import { computed, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useAuctusStore } from '../composables/useAuctusStore'
 
@@ -7,19 +7,22 @@ const router = useRouter()
 const route = useRoute()
 const store = useAuctusStore()
 
-onMounted(async () => {
-  await store.init()
-
-  if (store.isConnected.value) {
-    redirectAfterLogin()
-  }
-})
-
 const isConnecting = computed(() => store.isConnecting.value)
+const isConnected = computed(() => store.isConnected.value)
 const walletStatus = computed(() => store.walletStatus.value)
 const contractStatus = computed(() => store.contractStatus.value)
 const txStatus = computed(() => store.txStatus.value)
 const isWrongNetwork = computed(() => store.isWrongNetwork.value)
+
+watch(
+  isConnected,
+  (connected) => {
+    if (connected) {
+      redirectAfterLogin()
+    }
+  },
+  { immediate: true }
+)
 
 async function handleConnectWallet() {
   const connected = await store.connectWallet()
@@ -63,27 +66,29 @@ function redirectAfterLogin() {
   <section class="login-page">
     <div class="login-shell">
       <div class="login-hero">
-        <p class="eyebrow">TaskBit</p>
-        <h1>Academic contribution tracker on blockchain</h1>
-        <p class="subtext">
-          Connect your wallet to manage academic contributions, review submissions, and mint
-          achievement NFTs.
-        </p>
+        <div class="hero-copy">
+          <p class="eyebrow">TaskBit</p>
+          <h1>Academic contribution tracker on blockchain</h1>
+          <p class="subtext">
+            Connect your wallet to manage academic contributions, review submissions, and mint
+            achievement NFTs.
+          </p>
+        </div>
 
         <div class="feature-list">
           <div class="feature-card">
             <strong>Track Contributions</strong>
-            <p>Submit academic work and keep all records in one place.</p>
+            <p>Submit academic work and keep records organized in one place.</p>
           </div>
 
           <div class="feature-card">
             <strong>Reviewer Workflow</strong>
-            <p>Professors and admins can approve or reject student submissions.</p>
+            <p>Professors and admins can review, approve, or reject submissions.</p>
           </div>
 
           <div class="feature-card">
             <strong>NFT Achievements</strong>
-            <p>Mint approved contributions as on-chain academic achievements.</p>
+            <p>Mint approved work as verifiable on-chain academic achievements.</p>
           </div>
         </div>
       </div>
@@ -160,14 +165,14 @@ function redirectAfterLogin() {
 .login-shell {
   width: min(1120px, 100%);
   display: grid;
-  grid-template-columns: minmax(0, 1.1fr) minmax(360px, 0.9fr);
+  grid-template-columns: minmax(0, 1.1fr) minmax(360px, 420px);
   gap: 24px;
   align-items: stretch;
 }
 
 .login-hero,
 .login-card {
-  background: rgba(255, 255, 255, 0.9);
+  background: rgba(255, 255, 255, 0.92);
   border: 1px solid rgba(148, 163, 184, 0.16);
   border-radius: 28px;
   box-shadow: 0 24px 48px rgba(15, 23, 42, 0.08);
@@ -178,12 +183,17 @@ function redirectAfterLogin() {
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  gap: 24px;
+  gap: 28px;
+}
+
+.hero-copy {
+  display: grid;
+  gap: 10px;
 }
 
 .eyebrow,
 .section-label {
-  margin: 0 0 8px;
+  margin: 0;
   text-transform: uppercase;
   letter-spacing: 0.08em;
   font-size: 0.76rem;
@@ -191,21 +201,24 @@ function redirectAfterLogin() {
   color: #6366f1;
 }
 
-.login-hero h1,
-.login-card h2 {
+.login-hero h1 {
   margin: 0;
-  font-size: clamp(1.8rem, 3vw, 3rem);
+  font-size: clamp(2rem, 3vw, 3.2rem);
   line-height: 1.05;
   color: #0f172a;
+  max-width: 12ch;
 }
 
 .login-card h2 {
+  margin: 0;
   font-size: 1.6rem;
+  line-height: 1.1;
+  color: #0f172a;
 }
 
 .subtext,
 .login-card-header p {
-  margin: 12px 0 0;
+  margin: 0;
   color: #64748b;
   line-height: 1.7;
 }
@@ -238,11 +251,12 @@ function redirectAfterLogin() {
   padding: 30px;
   display: grid;
   gap: 20px;
+  align-content: center;
 }
 
 .login-card-header {
   display: grid;
-  gap: 4px;
+  gap: 8px;
 }
 
 .status-stack {
@@ -265,6 +279,7 @@ function redirectAfterLogin() {
 }
 
 .status-item strong {
+  display: block;
   color: #0f172a;
   line-height: 1.5;
   word-break: break-word;
@@ -326,6 +341,10 @@ function redirectAfterLogin() {
   .login-card {
     border-radius: 24px;
   }
+
+  .login-hero h1 {
+    max-width: none;
+  }
 }
 
 @media (max-width: 640px) {
@@ -337,6 +356,14 @@ function redirectAfterLogin() {
   .login-card {
     padding: 22px;
     border-radius: 20px;
+  }
+
+  .login-hero h1 {
+    font-size: 1.9rem;
+  }
+
+  .login-card h2 {
+    font-size: 1.35rem;
   }
 }
 </style>

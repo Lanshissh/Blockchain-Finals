@@ -20,6 +20,8 @@ const canReview = computed(
     store.isOwner.value
 )
 
+const isLoginPage = computed(() => route.path === '/login')
+
 const navigationItems = computed(() => {
   if (!isAuthenticated.value) {
     return []
@@ -110,7 +112,9 @@ function iconPath(icon) {
 </script>
 
 <template>
-  <div class="app-shell">
+  <RouterView v-if="isLoginPage" />
+
+  <div v-else class="app-shell">
     <aside v-if="isAuthenticated" class="app-sidebar">
       <div class="sidebar-brand">
         <div class="brand-badge">TB</div>
